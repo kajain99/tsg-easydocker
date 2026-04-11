@@ -1,0 +1,47 @@
+{% if compose_summary %}
+<ul class="summary-list mb-0">
+    <li><strong>Project status:</strong> {{ compose_summary.status or "pending" }}</li>
+    <li><strong>Services:</strong> {{ compose_summary.service_count or 0 }}</li>
+</ul>
+{% for service in compose_summary.services or [] %}
+<div class="mt-3">
+    <div><strong>{{ service.name }}</strong> {% if service.status %}<span class="text-muted">({{ service.status }})</span>{% endif %}</div>
+    <ul class="summary-list mt-2 mb-0">
+        {% if service.container_name %}
+        <li><strong>Container:</strong> {{ service.container_name }}</li>
+        {% endif %}
+        {% if service.image %}
+        <li><strong>Image:</strong> {{ service.image }}</li>
+        {% endif %}
+        {% if service.ports %}
+        <li><strong>Ports:</strong> {{ service.ports | join(", ") }}</li>
+        {% endif %}
+        {% if service.volumes %}
+        <li><strong>Data location:</strong> {{ service.volumes | join(", ") }}</li>
+        {% endif %}
+        {% if service.restart %}
+        <li><strong>Restart policy:</strong> {{ service.restart }}</li>
+        {% endif %}
+        {% if service.network_mode %}
+        <li><strong>Network mode:</strong> {{ service.network_mode }}</li>
+        {% endif %}
+        {% if service.cap_add %}
+        <li><strong>Extra capabilities:</strong> {{ service.cap_add | join(", ") }}</li>
+        {% endif %}
+        {% if service.devices %}
+        <li><strong>Devices:</strong> {{ service.devices | join(", ") }}</li>
+        {% endif %}
+        {% if service.environment %}
+        <li>
+            <strong>Environment:</strong>
+            {% for env in service.environment %}
+                {{ env.key }}={{ env.value }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </li>
+        {% endif %}
+    </ul>
+</div>
+{% endfor %}
+{% else %}
+<p class="summary-empty">No config summary available.</p>
+{% endif %}

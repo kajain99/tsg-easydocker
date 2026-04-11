@@ -1,0 +1,65 @@
+{
+  "name": "tailscale",
+  "version": 2,
+  "description": "Secure remote access to your NAS",
+  "services": {
+    "tailscale": {
+      "container_name": "${PROJECT_NAME}",
+      "image": "tailscale/tailscale:latest",
+      "network_mode": "host",
+      "restart": "${RESTART_POLICY}",
+      "environment": {
+        "TS_AUTHKEY": "${TS_AUTHKEY}"
+      },
+      "volumes": [
+        "${TAILSCALE_DATA_LOCATION}:/var/lib/tailscale"
+      ],
+      "cap_add": [
+        "NET_ADMIN",
+        "NET_RAW"
+      ],
+      "devices": [
+        "/dev/net/tun:/dev/net/tun"
+      ]
+    }
+  },
+  "fields": [
+    {
+      "name": "TS_AUTHKEY",
+      "label": "Auth Key",
+      "section": "environment",
+      "input_type": "password",
+      "required": true,
+      "default": "",
+      "help": "Get this from the Tailscale admin console."
+    },
+    {
+      "name": "RESTART_POLICY",
+      "label": "Restart Policy",
+      "section": "basic",
+      "input_type": "text",
+      "required": true,
+      "default": "unless-stopped",
+      "help": "Controls whether the container restarts automatically after reboot."
+    },
+    {
+      "name": "TAILSCALE_DATA_LOCATION",
+      "label": "Tailscale Data Folder",
+      "section": "storage",
+      "input_type": "text",
+      "required": true,
+      "default": "./tailscale_data",
+      "help": "Stores Tailscale state inside this project folder."
+    }
+  ],
+  "ui": {
+    "overview": "Tailscale lets you securely access your NAS from anywhere without port forwarding. It creates a private network between your devices.",
+    "what_happens": [
+      "A Tailscale container will be created",
+      "It will run in host network mode",
+      "Its state will be saved in the folder you choose",
+      "It will restart automatically based on your policy"
+    ],
+    "data_location": "Stored relative to this app's config folder unless you enter an absolute path."
+  }
+}

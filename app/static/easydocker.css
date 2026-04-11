@@ -1,0 +1,181 @@
+:root {
+    --ed-bg: #f4f6f9;
+    --ed-surface: #ffffff;
+    --ed-surface-muted: #f8fafc;
+    --ed-border: #e8eaed;
+    --ed-border-strong: #dbe4ee;
+    --ed-text: #1a1a2e;
+    --ed-text-muted: #5f6b7a;
+    --ed-primary: #0d6efd;
+    --ed-primary-hover: #0a4dbf;
+    --ed-success: #15803d;
+    --ed-success-bg: #ecfdf3;
+    --ed-danger: #b91c1c;
+    --ed-danger-bg: #fef2f2;
+    --ed-warning-bg: #fff8db;
+    --ed-warning-border: #ffe69c;
+}
+
+body {
+    background: var(--ed-bg);
+    color: var(--ed-text);
+}
+
+h1, h2, h3, h4, h5, h6,
+.page-title,
+.section-title,
+.deploy-title,
+.config-banner-title,
+.summary-section-title,
+.action-card-title,
+.login-title,
+.app-name,
+.recipe-card-name {
+    color: var(--ed-text);
+}
+
+.text-muted,
+.section-note,
+.deploy-subtitle,
+.config-banner-text,
+.app-source,
+.summary,
+.top-summary-label,
+.summary-item-label,
+.login-subtitle,
+.summary-empty {
+    color: var(--ed-text-muted) !important;
+}
+
+.section,
+.deploy-card,
+.summary-card,
+.config-banner,
+.login-card,
+.warning-card,
+.risk-card,
+.recipe-card,
+.installed-grid-card,
+.action-card,
+.top-summary-item,
+.inline-help {
+    background: var(--ed-surface);
+    border: 1px solid var(--ed-border);
+    border-radius: 8px;
+}
+
+.summary-strip,
+.top-summary-item,
+.inline-help,
+.config-banner,
+.installed-grid-card {
+    background: var(--ed-surface-muted);
+}
+
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.btn-primary,
+.install-btn {
+    background: var(--ed-primary);
+    border-color: var(--ed-primary);
+    color: #fff;
+}
+
+.btn-primary:hover,
+.install-btn:hover {
+    background: var(--ed-primary-hover);
+    border-color: var(--ed-primary-hover);
+    color: #fff;
+}
+
+.btn-outline-primary {
+    color: var(--ed-primary);
+    border-color: #cfe2ff;
+    background: #f8fbff;
+}
+
+.btn-outline-primary:hover {
+    color: var(--ed-primary-hover);
+    border-color: #b6d4fe;
+    background: #eaf3ff;
+}
+
+.btn-outline-secondary {
+    color: var(--ed-text-muted);
+    border-color: var(--ed-border-strong);
+    background: var(--ed-surface);
+}
+
+.btn-outline-secondary:hover {
+    color: var(--ed-text);
+    border-color: #cfd6df;
+    background: #eef2f6;
+}
+
+.btn-outline-danger {
+    color: var(--ed-danger);
+    border-color: #fecaca;
+    background: #fff7f7;
+}
+
+.btn-outline-danger:hover {
+    color: #991b1b;
+    border-color: #fca5a5;
+    background: #fee2e2;
+}
+
+.btn-success {
+    background: var(--ed-success);
+    border-color: var(--ed-success);
+}
+
+.btn-warning {
+    background: #fbbf24;
+    border-color: #fbbf24;
+    color: #3b2f05;
+}
+
+.open-btn,
+.details-toggle,
+.about-toggle,
+.back-link,
+.see-all-link {
+    color: var(--ed-primary);
+}
+
+.open-btn:hover,
+.details-toggle:hover,
+.about-toggle:hover,
+.back-link:hover,
+.see-all-link:hover {
+    color: var(--ed-primary-hover);
+}
+
+.status-badge.success {
+    background: var(--ed-success-bg);
+    color: var(--ed-success);
+}
+
+.status-badge.failure {
+    background: var(--ed-danger-bg);
+    color: var(--ed-danger);
+}
+
+.warning-card,
+.upgrade-note {
+    background: var(--ed-warning-bg);
+    border-color: var(--ed-warning-border);
+}
+
+.risk-card {
+    background: #fff1f2;
+    border-color: #fecdd3;
+}
+
+.form-control,
+.input-group > .btn {
+    border-radius: 8px !important;
+}

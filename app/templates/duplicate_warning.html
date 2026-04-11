@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Duplicate Warning</title>
+    <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/easydocker.css">
+    <style>
+        body { background: #f4f6f9; }
+
+        .warning-shell {
+            max-width: 760px;
+            margin: 48px auto;
+        }
+
+        .warning-card {
+            background: white;
+            border: 1px solid #e8eaed;
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .warning-list {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .warning-list li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container warning-shell">
+    <div class="warning-card">
+        <h3 class="mb-3">App already appears to be running</h3>
+        <p class="text-muted mb-3">
+            EasyDocker found a running container that may already be this app. Installing again may cause conflicts.
+        </p>
+
+        <p class="mb-3">
+            If you continue, the new container will be created as <code>{{ next_container_name }}</code>.
+        </p>
+
+        <div class="alert alert-warning" role="alert">
+            Duplicate detection checks both the internal container prefix and the Docker image.
+        </div>
+
+        <ul class="warning-list mb-4">
+            {% for container in duplicates %}
+            <li>
+                <strong>{{ container.name }}</strong>
+                {% if container.image %}using <code>{{ container.image }}</code>{% endif %}
+                <br>
+                Reason: {{ container.reasons | join(", ") }}
+            </li>
+            {% endfor %}
+        </ul>
+
+        <div class="d-flex gap-2">
+            <a href="/recipe/{{ recipe.name }}" class="btn btn-outline-secondary">Go Back</a>
+
+            <form method="POST" action="/generate/{{ recipe.name }}">
+                {% for key, value in form_data.items() %}
+                {% if key != "csrf_token" %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endif %}
+                {% endfor %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="deploy">
+                <input type="hidden" name="confirm_duplicate" value="1">
+                <button type="submit" class="btn btn-warning">Continue Anyway</button>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    window.addEventListener("pageshow", (event) => {
+        const nav = performance.getEntriesByType("navigation")[0];
+        if (event.persisted || (nav && nav.type === "back_forward")) {
+            window.location.reload();
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+{
+  "name": "immich",
+  "version": 2,
+  "description": "Photo and video backup with search, AI features, and a built-in database stack",
+  "services": {
+    "immich-server": {
+      "container_name": "${PROJECT_NAME}_server",
+      "image": "ghcr.io/immich-app/immich-server:${IMMICH_VERSION}",
+      "volumes": [
+        "${UPLOAD_LOCATION}:/data",
+        "/etc/localtime:/etc/localtime:ro"
+      ],
+      "environment": {
+        "TZ": "${TZ}",
+        "DB_HOSTNAME": "database",
+        "DB_PORT": "5432",
+        "DB_USERNAME": "${DB_USERNAME}",
+        "DB_PASSWORD": "${DB_PASSWORD}",
+        "DB_DATABASE_NAME": "${DB_DATABASE_NAME}",
+        "REDIS_HOSTNAME": "redis",
+        "REDIS_PORT": "6379"
+      },
+      "ports": [
+        "${IMMICH_PORT}:2283"
+      ],
+      "depends_on": [
+        "redis",
+        "database"
+      ],
+      "restart": "always",
+      "healthcheck": {
+        "disable": false
+      }
+    },
+    "immich-machine-learning": {
+      "container_name": "${PROJECT_NAME}_machine_learning",
+      "image": "ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION}",
+      "environment": {
+        "TZ": "${TZ}",
+        "DB_HOSTNAME": "database",
+        "DB_PORT": "5432",
+        "DB_USERNAME": "${DB_USERNAME}",
+        "DB_PASSWORD": "${DB_PASSWORD}",
+        "DB_DATABASE_NAME": "${DB_DATABASE_NAME}",
+        "REDIS_HOSTNAME": "redis",
+        "REDIS_PORT": "6379"
+      },
+      "volumes": [
+        "${MODEL_CACHE_LOCATION}:/cache"
+      ],
+      "restart": "always",
+      "healthcheck": {
+        "disable": false
+      }
+    },
+    "redis": {
+      "container_name": "${PROJECT_NAME}_redis",
+      "image": "docker.io/valkey/valkey:9",
+      "restart": "always",
+      "healthcheck": {
+        "test": "redis-cli ping || exit 1"
+      }
+    },
+    "database": {
+      "container_name": "${PROJECT_NAME}_postgres",
+      "image": "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0",
+      "environment": {
+        "POSTGRES_PASSWORD": "${DB_PASSWORD}",
+        "POSTGRES_USER": "${DB_USERNAME}",
+        "POSTGRES_DB": "${DB_DATABASE_NAME}",
+        "POSTGRES_INITDB_ARGS": "--data-checksums"
+      },
+      "volumes": [
+        "${DB_DATA_LOCATION}:/var/lib/postgresql/data"
+      ],
+      "shm_size": "128mb",
+      "restart": "always",
+      "healthcheck": {
+        "disable": false
+      }
+    }
+  },
+  "app_links": [
+    {
+      "label": "Open Immich",
+      "service": "immich-server",
+      "port": "${IMMICH_PORT}",
+      "path": "/"
+    }
+  ],
+  "fields": [
+    {
+      "name": "IMMICH_PORT",
+      "label": "App Port",
+      "section": "basic",
+      "input_type": "text",
+      "required": true,
+      "default": "2283",
+      "help": "The web app will open on this host port."
+    },
+    {
+      "name": "IMMICH_VERSION",
+      "label": "Immich Version",
+      "section": "basic",
+      "input_type": "text",
+      "required": true,
+      "default": "v2",
+      "help": "Immich image tag. The official docs use v2 as the default release track."
+    },
+    {
+      "name": "DB_USERNAME",
+      "label": "Database User",
+      "section": "environment",
+      "input_type": "text",
+      "required": true,
+      "default": "postgres",
+      "help": "Database username used by Immich and Postgres."
+    },
+    {
+      "name": "DB_PASSWORD",
+      "label": "Database Password",
+      "section": "environment",
+      "input_type": "password",
+      "required": true,
+      "default": "postgres",
+      "help": "Use only letters and numbers to match Immich's recommendation."
+    },
+    {
+      "name": "DB_DATABASE_NAME",
+      "label": "Database Name",
+      "section": "environment",
+      "input_type": "text",
+      "required": true,
+      "default": "immich",
+      "help": "Main Postgres database name for Immich."
+    },
+    {
+      "name": "UPLOAD_LOCATION",
+      "label": "Library Folder",
+      "section": "storage",
+      "input_type": "text",
+      "required": true,
+      "default": "./library",
+      "help": "Host path where Immich stores uploaded photos and videos."
+    },
+    {
+      "name": "DB_DATA_LOCATION",
+      "label": "Database Folder",
+      "section": "storage",
+      "input_type": "text",
+      "required": true,
+      "default": "./postgres",
+      "help": "Host path for the Postgres database files."
+    },
+    {
+      "name": "MODEL_CACHE_LOCATION",
+      "label": "Model Cache Folder",
+      "section": "storage",
+      "input_type": "text",
+      "required": true,
+      "default": "./model-cache",
+      "help": "Host path for machine-learning model cache files."
+    },
+    {
+      "name": "TZ",
+      "label": "Timezone",
+      "section": "advanced",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Optional timezone such as Asia/Dubai or Etc/UTC."
+    }
+  ],
+  "ui": {
+    "overview": "Immich installs the web app, machine learning service, Redis, and Postgres together as one stack.",
+    "what_happens": [
+      "Four containers will be created as one compose project",
+      "Your photos and videos will be stored in the library folder you choose",
+      "Postgres and model cache data will be stored in their own folders",
+      "The web app will open on the port you choose"
+    ],
+    "data_location": "Each storage field can be relative to this app's config folder or an absolute path."
+  }
+}

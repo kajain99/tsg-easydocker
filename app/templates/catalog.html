@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TSG EasyDocker</title>
+    <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/easydocker.css">
+    <style>
+        body { background: #f4f6f9; }
+
+        .top-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .logout-form { margin: 0; }
+
+        .section {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #e8eaed;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin: 0;
+        }
+
+        .section-divider {
+            margin: 0 0 18px 0;
+            border: 0;
+            border-top: 1px solid #e8eaed;
+        }
+
+        .see-all-link {
+            font-size: 13px;
+            color: #0d6efd;
+            text-decoration: none;
+        }
+
+        .see-all-link:hover { text-decoration: underline; }
+
+        .refresh-btn {
+            font-size: 13px;
+            border-radius: 8px;
+        }
+
+        .app-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f1f3;
+        }
+
+        .app-row:last-child { border-bottom: none; }
+
+        .app-info { display: flex; align-items: center; gap: 10px; }
+
+        .app-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .app-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1a1a2e;
+            margin: 0;
+        }
+
+        .app-source {
+            font-size: 12px;
+            color: #888;
+            margin: 0;
+        }
+
+        .app-actions { display: flex; align-items: center; gap: 8px; }
+
+        .installed-grid-card {
+            background: #fbfcfe;
+            border: 1px solid #e8eaed;
+            border-radius: 10px;
+            padding: 14px 12px;
+            height: 100%;
+        }
+
+        .installed-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin: 0 0 8px 0;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .installed-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #5f6b7a;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #c7ced6;
+            display: inline-block;
+        }
+
+        .status-dot.running {
+            background: #22c55e;
+        }
+
+        .status-text {
+            line-height: 1;
+        }
+
+        .project-members {
+            margin: 0;
+            padding-left: 18px;
+            font-size: 12px;
+            color: #5f6b7a;
+        }
+
+        .project-members li {
+            margin-bottom: 4px;
+        }
+
+        .section-note {
+            font-size: 12px;
+            color: #7a8291;
+            margin: -6px 0 14px 0;
+        }
+
+        .open-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #0d6efd;
+            text-decoration: none;
+            padding: 0;
+            border: none;
+            background: transparent;
+            white-space: nowrap;
+        }
+
+        .open-btn:hover { color: #0a4dbf; }
+
+        .open-btn svg { width: 11px; height: 11px; }
+
+        .redeploy-form {
+            margin: 0;
+        }
+
+        .redeploy-btn {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .delete-btn {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .badge-external {
+            font-size: 11px;
+            color: #888;
+            background: #f1f3f5;
+            border-radius: 4px;
+            padding: 2px 8px;
+        }
+
+        .recipe-card {
+            background: white;
+            border: 1px solid #e8eaed;
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            transition: box-shadow 0.15s;
+        }
+
+        .recipe-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+
+        .recipe-card-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+        }
+
+        .recipe-card-desc {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 14px;
+            flex-grow: 1;
+        }
+
+        .install-btn {
+            display: block;
+            text-align: center;
+            font-size: 13px;
+            padding: 7px;
+            border-radius: 8px;
+            background: #0d6efd;
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .install-btn:hover { background: #0a4dbf; color: white; }
+
+        .page-header h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 2px;
+        }
+        .page-header .headline {
+            font-size: 22px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin: 0;
+        }
+        .page-header .subheadline {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 6px 0 0 0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 24px 0;
+            color: #aaa;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container mt-4" style="max-width: 1320px;">
+    <div class="top-bar">
+        <form method="POST" action="/logout" class="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
+        </form>
+    </div>
+
+    <!-- HEADER -->
+    <div class="page-header mb-4">
+        <h2>TSG EasyDocker</h2>
+        <p class="headline">Install apps on your NAS without touching Docker</p>
+        <p class="subheadline">Pick an app, configure it, and deploy in seconds.</p>
+    </div>
+
+    <!-- INSTALLED APPS -->
+    <div class="section">
+        <div class="section-header">
+            <h5 class="section-title">Installed Apps</h5>
+            {% if installed_apps|length > 12 %}
+                <a href="/installed" class="see-all-link">See all {{ installed_apps|length }} apps &rarr;</a>
+            {% endif %}
+        </div>
+        <hr class="section-divider">
+        <p class="section-note">Showing all containers from Docker, including stopped ones.</p>
+
+        {% if installed_apps|length == 0 %}
+            <div class="empty-state">No containers found.</div>
+        {% else %}
+        <div class="row g-3">
+            {% for app in installed_apps[:12] %}
+            <div class="col-6 col-lg-2">
+                <div class="installed-grid-card">
+                    <p class="installed-title">
+                        {{ app.name }} (
+                        {% if app.source == "easydocker" %}
+                            Via EasyDocker
+                        {% elif app.source == "external_project" %}
+                            External Project
+                        {% else %}
+                            External Container
+                        {% endif %}
+                        )
+                    </p>
+                    <ul class="project-members">
+                        {% for member in app.members %}
+                        <li>
+                            {{ member.name }} ({{ member.state }})
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <div class="installed-meta">
+                        {% if app.source == "easydocker" %}
+                            <form method="POST" action="/redeploy/{{ app.name }}" class="redeploy-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-primary redeploy-btn">Review &amp; Redeploy</button>
+                            </form>
+                        {% endif %}
+                        {% if app.source == "easydocker" and app.app_links %}
+                            {% for link in app.app_links %}
+                            <a href="{{ link.url if link.url else 'http://' ~ request.host.split(':')[0] ~ ':' ~ link.port }}" target="_blank" class="open-btn">
+                                {{ link.label }}
+                                <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </a>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+            {% if installed_apps|length > 12 %}
+            <div style="padding-top: 12px; text-align: center;">
+                <a href="/installed" class="see-all-link">See all {{ installed_apps|length }} installed apps &rarr;</a>
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h5 class="section-title">Configs Without Container</h5>
+        </div>
+        <hr class="section-divider">
+        <p class="section-note">These EasyDocker compose files still exist, but Docker no longer has the matching container.</p>
+
+        {% if orphan_configs|length == 0 %}
+            <div class="empty-state">No leftover EasyDocker configs found.</div>
+        {% else %}
+        <div class="row g-3">
+            {% for config in orphan_configs %}
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="installed-grid-card">
+                    <p class="installed-title">{{ config.name }}</p>
+                    <div class="installed-meta justify-content-between">
+                        <span class="status-indicator">
+                            <span class="status-dot"></span>
+                            <span class="status-text">Config only</span>
+                        </span>
+                        <div class="d-flex gap-2">
+                            <form method="POST" action="/redeploy/{{ config.name }}" class="redeploy-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-primary redeploy-btn">Review &amp; Redeploy</button>
+                            </form>
+                            <form method="POST" action="/delete-config/{{ config.name }}" class="redeploy-form" onsubmit="return confirm('Delete this saved config?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="next" value="/">
+                                <button type="submit" class="btn btn-outline-danger delete-btn">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- INSTALL NEW APPS -->
+    <div class="section">
+        <div class="section-header">
+            <h5 class="section-title">Install New Apps</h5>
+            <button type="button" class="btn btn-outline-secondary refresh-btn" id="refresh-recipes-btn">
+                Refresh Recipes
+            </button>
+        </div>
+
+        {% if apps|length == 0 %}
+            <div class="empty-state">No recipes available. Try refreshing.</div>
+        {% else %}
+        <div class="row g-3">
+            {% for app in apps %}
+            <div class="col-6 col-md-4">
+                <div class="recipe-card">
+                    <div>
+                        <p class="recipe-card-name">{{ app.name }}</p>
+                        <p class="recipe-card-desc">{{ app.description }}</p>
+                    </div>
+                    <a href="/recipe/{{ app.name }}" class="install-btn">Install</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- FOOTER -->
+    <div class="text-center mb-4 text-muted" style="font-size: 12px;">
+        EasyDocker installs apps. UGREEN Docker manages them.
+    </div>
+
+</div>
+<script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script>
+    window.addEventListener("pageshow", (event) => {
+        const nav = performance.getEntriesByType("navigation")[0];
+        if (event.persisted || (nav && nav.type === "back_forward")) {
+            window.location.reload();
+        }
+    });
+
+    const refreshRecipesBtn = document.getElementById("refresh-recipes-btn");
+
+    if (refreshRecipesBtn) {
+        refreshRecipesBtn.addEventListener("click", async () => {
+            const originalText = refreshRecipesBtn.textContent;
+            refreshRecipesBtn.disabled = true;
+            refreshRecipesBtn.textContent = "Refreshing...";
+
+            try {
+                const response = await fetch("/refresh-recipes", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRF-Token": "{{ csrf_token() }}"
+                    }
+                });
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || "Recipe refresh failed.");
+                }
+
+                const updatedCount = data.updated_count || 0;
+                refreshRecipesBtn.textContent = updatedCount > 0
+                    ? `Updated ${updatedCount} recipe${updatedCount === 1 ? "" : "s"}`
+                    : "Already Up To Date";
+
+                window.setTimeout(() => window.location.reload(), 700);
+            } catch (error) {
+                refreshRecipesBtn.disabled = false;
+                refreshRecipesBtn.textContent = originalText;
+                window.alert(error.message || "Recipe refresh failed.");
+            }
+        });
+    }
+</script>
+</body>
+</html>

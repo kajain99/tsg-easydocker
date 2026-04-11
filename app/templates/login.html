@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - TSG EasyDocker</title>
+    <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/easydocker.css">
+    <style>
+        body {
+            background: #f4f6f9;
+        }
+
+        .login-shell {
+            max-width: 420px;
+            margin: 72px auto;
+        }
+
+        .login-card {
+            background: white;
+            border: 1px solid #e8eaed;
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .login-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 6px;
+        }
+
+        .login-subtitle {
+            color: #5f6b7a;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container login-shell">
+    <div class="login-card">
+        <div class="login-title">TSG EasyDocker</div>
+        <p class="login-subtitle">Sign in to manage Docker apps.</p>
+
+        {% if error %}
+        <div class="alert alert-danger" role="alert">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/login">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ next_url }}">
+
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <input class="form-control" name="username" autocomplete="username" autofocus required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input class="form-control" type="password" name="password" autocomplete="current-password" required>
+            </div>
+
+            <button class="btn btn-primary w-100" type="submit">Sign In</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>

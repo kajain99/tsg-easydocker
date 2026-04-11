@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Deploying {{ deployment_label }}</title>
+    <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/easydocker.css">
+    <style>
+        body { background: #f4f6f9; }
+        .deploy-shell { max-width: 940px; margin: 32px auto; }
+        .deploy-card {
+            background: white;
+            border: 1px solid #e8eaed;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 18px;
+        }
+        .top-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 14px;
+        }
+        .logout-form { margin: 0; }
+        .deploy-hero {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        .deploy-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin: 0 0 6px 0;
+        }
+        .deploy-subtitle {
+            margin: 0;
+            color: #5f6b7a;
+            font-size: 14px;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            background: #eff6ff;
+            color: #1d4ed8;
+            white-space: nowrap;
+        }
+        .status-badge.pending::after {
+            content: "...";
+            display: inline-block;
+            width: 1.25em;
+            overflow: hidden;
+            vertical-align: bottom;
+            animation: deployDots 1.2s steps(4, end) infinite;
+        }
+        .status-badge.success {
+            background: #ecfdf3;
+            color: #15803d;
+        }
+        .status-badge.failure {
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+        @keyframes deployDots {
+            0% { width: 0; }
+            100% { width: 1.25em; }
+        }
+        .summary-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            background: #f8fafc;
+            border: 1px solid #e8eaed;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 18px;
+        }
+        .summary-item-label {
+            font-size: 12px;
+            color: #7a8291;
+            margin-bottom: 4px;
+        }
+        .summary-item-value {
+            font-size: 14px;
+            color: #1f2937;
+            word-break: break-word;
+        }
+        .result-panel {
+            display: none;
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid #e8eaed;
+        }
+        .result-panel.visible { display: block; }
+        .result-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .result-panel.success .result-title { color: #15803d; }
+        .result-panel.failure .result-title { color: #b91c1c; }
+        .result-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+        .details-toggle {
+            margin-top: 14px;
+            font-size: 13px;
+            color: #0d6efd;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .details-toggle:hover { color: #0a4dbf; }
+        .technical-details {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(148, 163, 184, 0.25);
+        }
+        .deploy-log-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 12px;
+        }
+        .deploy-log {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: 16px;
+            min-height: 320px;
+            max-height: 520px;
+            overflow-y: auto;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+        .log-line { margin-bottom: 2px; }
+        .log-line.status { color: #93c5fd; }
+        .log-line.stderr { color: #fca5a5; }
+        .summary { font-size: 14px; color: #5f6b7a; }
+    </style>
+</head>
+<body>
+<div class="container deploy-shell">
+    <div class="top-bar">
+        <form method="POST" action="/logout" class="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
+        </form>
+    </div>
+
+    <div class="deploy-card">
+        <div class="deploy-hero">
+            <div>
+                <div class="deploy-title">Deploying {{ deployment_label }}</div>
+                <p class="deploy-subtitle">Watching the live Docker output while EasyDocker applies this configuration.</p>
+            </div>
+            <div id="deploy-status" class="status-badge pending">Deploying</div>
+        </div>
+
+        <div class="summary-strip">
+            <div>
+                <div class="summary-item-label">Command</div>
+                <div class="summary-item-value">{{ command_display }}</div>
+            </div>
+            <div>
+                <div class="summary-item-label">Project Folder</div>
+                <div class="summary-item-value">{{ folder_display }}</div>
+            </div>
+            <div>
+                <div class="summary-item-label">Services</div>
+                <div class="summary-item-value">{{ services_count }}</div>
+            </div>
+            <div>
+                <div class="summary-item-label">Published Ports</div>
+                <div class="summary-item-value">{{ ports_display }}</div>
+            </div>
+        </div>
+
+        <div id="deploy-result" class="result-panel"></div>
+    </div>
+
+    <div class="deploy-card">
+        <div class="deploy-log-title">Live Log</div>
+        <div id="deploy-log" class="deploy-log"></div>
+    </div>
+</div>
+
+<script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script>
+    window.addEventListener("pageshow", (event) => {
+        const nav = performance.getEntriesByType("navigation")[0];
+        if (event.persisted || (nav && nav.type === "back_forward")) {
+            window.location.reload();
+        }
+    });
+
+    const logEl = document.getElementById("deploy-log");
+    const statusEl = document.getElementById("deploy-status");
+    const resultEl = document.getElementById("deploy-result");
+    const stream = new EventSource("/deploy-stream/{{ run_id }}");
+    let deploymentComplete = false;
+    let disconnectTimer = null;
+
+    function updateDeployStatus(payload) {
+        resultEl.className = `result-panel ${payload.kind} visible`;
+        resultEl.innerHTML =
+            `<div class="result-title">${payload.title}</div>` +
+            `<p class="summary mb-0">${payload.message}</p>` +
+            (payload.actions_html || "") +
+            (payload.details_html || "");
+
+        statusEl.classList.remove("pending");
+        if (payload.kind === "success") {
+            statusEl.textContent = "Success";
+            statusEl.classList.add("success");
+        } else {
+            statusEl.textContent = "Failed";
+            statusEl.classList.add("failure");
+        }
+    }
+
+    function appendLogLine(line) {
+        const lineEl = document.createElement("div");
+        lineEl.className = "log-line";
+        if (line.startsWith("Exit code:")) {
+            lineEl.classList.add(line.includes("0") ? "status" : "stderr");
+        } else if (line.includes("failed") || line.includes("error") || line.includes("Error")) {
+            lineEl.classList.add("stderr");
+        } else if (line.includes("Starting") || line.includes("Pulling") || line.includes("successfully")) {
+            lineEl.classList.add("status");
+        }
+        lineEl.textContent = line;
+        logEl.appendChild(lineEl);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    stream.addEventListener("log", (event) => {
+        if (disconnectTimer) {
+            window.clearTimeout(disconnectTimer);
+            disconnectTimer = null;
+        }
+        appendLogLine(JSON.parse(event.data));
+    });
+
+    stream.addEventListener("done", (event) => {
+        deploymentComplete = true;
+        if (disconnectTimer) {
+            window.clearTimeout(disconnectTimer);
+            disconnectTimer = null;
+        }
+        updateDeployStatus(JSON.parse(event.data));
+        logEl.scrollTop = logEl.scrollHeight;
+        stream.close();
+    });
+
+    stream.onerror = () => {
+        if (deploymentComplete || disconnectTimer) {
+            return;
+        }
+        disconnectTimer = window.setTimeout(() => {
+            if (deploymentComplete) {
+                return;
+            }
+            stream.close();
+            updateDeployStatus({
+                kind: "failure",
+                title: "Deployment stream disconnected",
+                message: "EasyDocker lost the live deployment stream for more than a few seconds. Check the current app state and try again if needed.",
+                actions_html: '<div class="result-actions"><a href="/" class="btn btn-primary">Back to Home</a></div>',
+                details_html: ""
+            });
+        }, 5000);
+    };
+</script>
+</body>
+</html>
