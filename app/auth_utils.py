@@ -1,5 +1,6 @@
 import os
 import secrets
+from urllib.parse import unquote, urlsplit
 
 from flask import abort, redirect, render_template, request, session, url_for
 
@@ -24,6 +25,22 @@ def get_csrf_token():
 
 def is_logged_in():
     return session.get("authenticated") is True
+
+
+def normalize_next_url(next_url):
+    candidate = next_url or "/"
+    parsed = urlsplit(candidate)
+    if parsed.scheme or parsed.netloc:
+        return "/"
+
+    decoded_path = unquote(parsed.path or "")
+    if not decoded_path.startswith("/"):
+        return "/"
+
+    if decoded_path.startswith("//") or decoded_path.startswith("/\\") or decoded_path.startswith("/%5c"):
+        return "/"
+
+    return candidate
 
 
 def register_security(app):
@@ -64,10 +81,7 @@ def register_security(app):
 
 def login_view():
     error = None
-    next_url = request.args.get("next") or request.form.get("next") or "/"
-
-    if not next_url.startswith("/") or next_url.startswith("//"):
-        next_url = "/"
+    next_url = normalize_next_url(request.args.get("next") or request.form.get("next") or "/")
 
     if request.method == "POST":
         username = request.form.get("username", "")

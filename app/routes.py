@@ -32,6 +32,7 @@ from services.deployment_service import (
     stream_deployment_events,
 )
 from services.recipe_service import (
+    build_recipe_field_sections,
     get_recipe_from_compose,
     is_safe_recipe_name,
     load_recipe_by_name,
@@ -39,6 +40,126 @@ from services.recipe_service import (
     save_recipe_snapshot,
 )
 from services.yaml_service import build_app_links, generate_compose
+
+
+REVIEW_ACTIONS = {"review_deploy", "review_pull_deploy"}
+DEPLOY_ACTIONS = {"deploy", "pull_deploy"}
+
+
+def resolve_submission_action(action):
+    if action in REVIEW_ACTIONS | DEPLOY_ACTIONS:
+        return action
+    return "review_deploy"
+
+
+def action_pulls_first(action):
+    return action in {"review_pull_deploy", "pull_deploy"}
+
+
+def build_recipe_form_context(recipe, form_defaults=None, port_conflicts=None, existing_config_name=None):
+    context = {
+        "recipe": recipe,
+        "form_defaults": form_defaults or {},
+    }
+    if port_conflicts:
+        context["port_conflicts"] = port_conflicts
+    context.update(build_recipe_field_sections(recipe))
+    if existing_config_name:
+        context.update(build_existing_config_context(existing_config_name, recipe))
+    return context
+
+
+def maybe_render_duplicate_warning(recipe, action, confirm_duplicate, container_name_override, form_data):
+    if action not in REVIEW_ACTIONS | DEPLOY_ACTIONS:
+        return None, False
+
+    if confirm_duplicate:
+        return None, True
+
+    if container_name_override:
+        return None, False
+
+    image_name = get_primary_recipe_image(recipe)
+    duplicates = find_duplicate_containers(recipe["name"], image_name)
+    if not duplicates:
+        return None, False
+
+    next_container_name = get_next_container_name(recipe["name"])
+    response = render_template(
+        "duplicate_warning.html",
+        recipe=recipe,
+        duplicates=duplicates,
+        form_data=form_data.to_dict(flat=True),
+        next_container_name=next_container_name
+    )
+    return response, False
+
+
+def resolve_container_name(recipe_name, action, container_name_override, has_duplicates):
+    base_container_name = container_name_override or build_container_name(recipe_name)
+    if action not in REVIEW_ACTIONS | DEPLOY_ACTIONS:
+        return base_container_name
+
+    all_project_names = get_all_project_names()
+    if container_name_override or (not has_duplicates and base_container_name not in all_project_names):
+        return base_container_name
+
+    return get_next_container_name(recipe_name)
+
+
+def build_deploy_display_context(compose_summary, folder_path, pull_first):
+    compose_cmd = get_compose_command()
+    command_steps = []
+    if pull_first:
+        command_steps.append(" ".join(compose_cmd + ["pull"]))
+    command_steps.append(" ".join(compose_cmd + ["up", "-d"]))
+
+    exposed_ports = []
+    if compose_summary:
+        for service in compose_summary.get("services", []):
+            exposed_ports.extend(service.get("ports", []))
+
+    return {
+        "compose_cmd": compose_cmd,
+        "command_display": " then ".join(command_steps),
+        "folder_display": str(folder_path),
+        "services_count": compose_summary.get("service_count", 0) if compose_summary else 0,
+        "ports_display": ", ".join(exposed_ports) if exposed_ports else "None",
+    }
+
+
+def render_recipe_review_page(recipe, yaml_output, compose_summary, form_items, container_name, pull_first):
+    display_context = build_deploy_display_context(compose_summary, BASE_CONFIG / container_name, pull_first)
+    return render_template(
+        "review_deploy.html",
+        recipe=recipe,
+        compose_yaml=yaml_output,
+        command_display=display_context["command_display"],
+        folder_display=display_context["folder_display"],
+        services_count=display_context["services_count"],
+        ports_display=display_context["ports_display"],
+        final_action="pull_deploy" if pull_first else "deploy",
+        form_items=form_items,
+        container_name=container_name,
+    )
+
+
+def start_recipe_deployment(recipe, yaml_output, compose_summary, app_links, app_folder, container_name, pull_first):
+    display_context = build_deploy_display_context(compose_summary, app_folder, pull_first)
+    result_payloads = build_deployment_result_payloads(yaml_output, app_links)
+    run_id = start_deployment_run(
+        compose_cmd=display_context["compose_cmd"],
+        app_folder=app_folder,
+        deployment_label=recipe.get("name") or container_name,
+        command_display=display_context["command_display"],
+        folder_display=display_context["folder_display"],
+        services_count=display_context["services_count"],
+        ports_display=display_context["ports_display"],
+        success_result=result_payloads["success"],
+        failure_result=result_payloads["failure"],
+        pull_first=pull_first,
+    )
+    return redirect(url_for("deploy_page", run_id=run_id))
 
 
 def register_routes(app):
@@ -75,7 +196,11 @@ def register_routes(app):
         recipe = load_recipe_by_name(name)
         if not recipe:
             return f"Recipe {name} not found"
-        return render_template("recipe_v2.html", recipe=recipe)
+        return render_template(
+            "recipe_v2.html",
+            recipe=recipe,
+            **build_recipe_field_sections(recipe)
+        )
 
     @app.route("/generate/<name>", methods=["POST"])
     def generate_yaml(name):
@@ -87,40 +212,25 @@ def register_routes(app):
             return "Recipe not found"
 
         form_data = request.form
-        action = form_data.get("action")
-        pull_first = action == "pull_deploy"
-        image_name = get_primary_recipe_image(recipe)
+        action = resolve_submission_action(form_data.get("action"))
+        pull_first = action_pulls_first(action)
         confirm_duplicate = form_data.get("confirm_duplicate") == "1"
         container_name_override = form_data.get("container_name_override", "").strip()
-        has_duplicates = False
 
         if container_name_override and not is_safe_container_name(container_name_override):
             return "Invalid container name", 400
 
-        if action not in {"deploy", "pull_deploy"}:
-            action = "deploy"
-            pull_first = False
+        duplicate_warning_response, has_duplicates = maybe_render_duplicate_warning(
+            recipe,
+            action,
+            confirm_duplicate,
+            container_name_override,
+            form_data,
+        )
+        if duplicate_warning_response:
+            return duplicate_warning_response
 
-        if action in {"deploy", "pull_deploy"} and not confirm_duplicate and not container_name_override:
-            duplicates = find_duplicate_containers(recipe["name"], image_name)
-            if duplicates:
-                next_container_name = get_next_container_name(recipe["name"])
-                return render_template(
-                    "duplicate_warning.html",
-                    recipe=recipe,
-                    duplicates=duplicates,
-                    form_data=request.form.to_dict(flat=True),
-                    next_container_name=next_container_name
-                )
-        elif action in {"deploy", "pull_deploy"} and confirm_duplicate:
-            has_duplicates = True
-
-        base_container_name = container_name_override or build_container_name(recipe["name"])
-        all_project_names = get_all_project_names() if action in {"deploy", "pull_deploy"} else set()
-        container_name = base_container_name
-
-        if not container_name_override and (has_duplicates or base_container_name in all_project_names):
-            container_name = get_next_container_name(recipe["name"])
+        container_name = resolve_container_name(recipe["name"], action, container_name_override, has_duplicates)
 
         compose = generate_compose(recipe, form_data, container_name)
         yaml_output = yaml.dump(compose, sort_keys=False)
@@ -128,16 +238,28 @@ def register_routes(app):
         host_name = request.host.split(":")[0]
         app_links = build_app_links(recipe, form_data, container_name, host_name)
 
-        if action in {"deploy", "pull_deploy"}:
+        if action in DEPLOY_ACTIONS:
             port_conflicts = find_port_conflicts(compose, container_name)
             if port_conflicts:
-                template_context = {
-                    "recipe": recipe,
-                    "form_defaults": request.form.to_dict(flat=True),
-                    "port_conflicts": port_conflicts
-                }
-                template_context.update(build_existing_config_context(container_name_override, recipe))
-                return render_template("recipe_v2.html", **template_context)
+                return render_template(
+                    "recipe_v2.html",
+                    **build_recipe_form_context(
+                        recipe,
+                        form_defaults=form_data.to_dict(flat=True),
+                        port_conflicts=port_conflicts,
+                        existing_config_name=container_name_override,
+                    )
+                )
+
+        if action in REVIEW_ACTIONS:
+            return render_recipe_review_page(
+                recipe,
+                yaml_output,
+                compose_summary,
+                form_data.items(),
+                container_name,
+                pull_first,
+            )
 
         app_folder = BASE_CONFIG / container_name
         app_folder.mkdir(parents=True, exist_ok=True)
@@ -147,36 +269,16 @@ def register_routes(app):
             handle.write(yaml_output)
         save_recipe_snapshot(app_folder, recipe)
 
-        if action in {"deploy", "pull_deploy"}:
-            compose_cmd = get_compose_command()
-            deployment_label = recipe.get("name") or container_name
-            command_steps = []
-            if pull_first:
-                command_steps.append(" ".join(compose_cmd + ["pull"]))
-            command_steps.append(" ".join(compose_cmd + ["up", "-d"]))
-            command_display = " then ".join(command_steps)
-            folder_display = str(app_folder)
-            services_count = compose_summary.get("service_count", 0) if compose_summary else 0
-            exposed_ports = []
-            if compose_summary:
-                for service in compose_summary.get("services", []):
-                    exposed_ports.extend(service.get("ports", []))
-            ports_display = ", ".join(exposed_ports) if exposed_ports else "None"
-            result_payloads = build_deployment_result_payloads(compose_summary, app_links)
-
-            run_id = start_deployment_run(
-                compose_cmd=compose_cmd,
-                app_folder=app_folder,
-                deployment_label=deployment_label,
-                command_display=command_display,
-                folder_display=folder_display,
-                services_count=services_count,
-                ports_display=ports_display,
-                success_result=result_payloads["success"],
-                failure_result=result_payloads["failure"],
-                pull_first=pull_first,
+        if action in DEPLOY_ACTIONS:
+            return start_recipe_deployment(
+                recipe,
+                yaml_output,
+                compose_summary,
+                app_links,
+                app_folder,
+                container_name,
+                pull_first,
             )
-            return redirect(url_for("deploy_page", run_id=run_id))
 
         return redirect("/")
 
@@ -223,9 +325,14 @@ def register_routes(app):
             return f"Recipe for config {container_name} not found", 404
 
         form_defaults = build_form_defaults_from_compose(recipe, compose_data)
-        template_context = {"recipe": recipe, "form_defaults": form_defaults}
-        template_context.update(build_existing_config_context(container_name, recipe))
-        return render_template("recipe_v2.html", **template_context)
+        return render_template(
+            "recipe_v2.html",
+            **build_recipe_form_context(
+                recipe,
+                form_defaults=form_defaults,
+                existing_config_name=container_name,
+            )
+        )
 
     @app.route("/delete-config/<container_name>", methods=["POST"])
     def delete_config(container_name):

@@ -13,6 +13,24 @@
         {% if service.image %}
         <li><strong>Image:</strong> {{ service.image }}</li>
         {% endif %}
+        {% if service.command %}
+        <li><strong>Command:</strong>
+            {% if service.command is string %}
+                {{ service.command }}
+            {% else %}
+                {{ service.command | join(" ") }}
+            {% endif %}
+        </li>
+        {% endif %}
+        {% if service.entrypoint %}
+        <li><strong>Entrypoint:</strong>
+            {% if service.entrypoint is string %}
+                {{ service.entrypoint }}
+            {% else %}
+                {{ service.entrypoint | join(" ") }}
+            {% endif %}
+        </li>
+        {% endif %}
         {% if service.ports %}
         <li><strong>Ports:</strong> {{ service.ports | join(", ") }}</li>
         {% endif %}

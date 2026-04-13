@@ -79,22 +79,6 @@
             padding: 14px 16px;
             margin-bottom: 18px;
         }
-        .risk-card {
-            background: #fff1f2;
-            border: 1px solid #fecdd3;
-            border-radius: 10px;
-            padding: 14px 16px;
-            margin-bottom: 18px;
-        }
-        .details-toggle {
-            font-size: 14px;
-            font-weight: 600;
-            color: #0d6efd;
-            text-decoration: none;
-        }
-        .details-toggle:hover {
-            color: #0a4dbf;
-        }
         .upgrade-note {
             background: #fff3cd;
             border: 1px solid #ffe69c;
@@ -118,14 +102,32 @@
             border-radius: 8px;
             padding: 10px 12px;
         }
-        .about-toggle {
-            font-size: 14px;
-            font-weight: 600;
-            color: #0d6efd;
-            text-decoration: none;
+        .readonly-list {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #f8fafc;
+            padding: 10px 12px;
         }
-        .about-toggle:hover {
-            color: #0a4dbf;
+        .readonly-item + .readonly-item {
+            margin-top: 6px;
+        }
+        .readonly-label {
+            color: #5f6b7a;
+            font-size: 13px;
+            font-weight: 600;
+            margin-right: 6px;
+        }
+        .section-meta {
+            color: #7a8291;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 6px;
+        }
+        .input-action-btn {
+            min-width: 44px;
+        }
+        .readonly-wrapper {
+            padding: 0 !important;
         }
         .action-grid {
             display: grid;
@@ -161,13 +163,21 @@
             margin-bottom: 14px;
         }
         .logout-form { margin: 0; }
+        .field-error {
+            display: none;
+            margin-top: 6px;
+            font-size: 12px;
+            color: #b91c1c;
+            font-weight: 500;
+        }
+        .form-control.is-invalid,
+        .form-select.is-invalid {
+            border-color: #dc2626;
+            box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.12);
+        }
     </style>
 </head>
 <body class="bg-light">
-{% set basic_fields = recipe.fields | selectattr("section", "equalto", "basic") | list %}
-{% set environment_fields = recipe.fields | selectattr("section", "equalto", "environment") | list %}
-{% set storage_fields = recipe.fields | selectattr("section", "equalto", "storage") | list %}
-{% set advanced_fields = recipe.fields | selectattr("section", "equalto", "advanced") | list %}
 
 <div class="container mt-4">
     <div class="top-bar">
@@ -243,47 +253,6 @@
         </div>
     </div>
 
-    <div class="summary-card">
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="summary-section-title mb-0">About This App</div>
-            <a class="about-toggle" data-bs-toggle="collapse" href="#about-app" role="button" aria-expanded="false" aria-controls="about-app">
-                Show app details
-            </a>
-        </div>
-        <div id="about-app" class="collapse mt-3">
-            <p class="mb-3">{{ recipe.ui.overview }}</p>
-
-            <h6>Services Included</h6>
-            <ul>
-                {% for service_name in recipe.services.keys() %}
-                <li>{{ service_name }}</li>
-                {% endfor %}
-            </ul>
-
-            <h6>What will happen</h6>
-            <ul>
-                {% for item in recipe.ui.what_happens %}
-                <li>{{ item }}</li>
-                {% endfor %}
-            </ul>
-
-            <h6>Data location</h6>
-            <p class="mb-0">{{ recipe.ui.data_location }}</p>
-        </div>
-    </div>
-
-    <div class="summary-card">
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="summary-section-title mb-0">Technical Details</div>
-            <a class="details-toggle" data-bs-toggle="collapse" href="#technical-details" role="button" aria-expanded="false" aria-controls="technical-details">
-                Show technical details
-            </a>
-        </div>
-        <div id="technical-details" class="collapse mt-3">
-            {% include "partials/compose_summary.html" %}
-        </div>
-    </div>
-
     {% endif %}
 
     <form method="POST" action="/generate/{{ recipe.name }}">
@@ -292,92 +261,24 @@
         <input type="hidden" name="container_name_override" value="{{ existing_config_name }}">
         {% endif %}
 
-        {% for title, fields in [("Basic Settings", basic_fields), ("Environment Variables", environment_fields), ("Storage", storage_fields)] %}
-        {% if fields %}
-        <div class="card mb-3">
-            <div class="card-header">{{ title }}</div>
-            <div class="card-body">
-                {% for field in fields %}
-                <div class="mb-3">
-                    <label class="form-label">
-                        {{ field.label }}
-                        {% if field.required %}
-                        <span class="required-note">*Required</span>
-                        {% endif %}
-                    </label>
-                    <div class="input-group">
-                        <input
-                            type="{{ field.input_type or 'text' }}"
-                            name="{{ field.name }}"
-                            value="{{ form_defaults.get(field.name, field.default or '') if form_defaults else field.default or '' }}"
-                            class="form-control"
-                            {% if field.required %}required{% endif %}
-                        >
-                        <button
-                            type="button"
-                            class="btn btn-outline-secondary"
-                            onclick="toggleHelp('{{ field.name }}')"
-                        >?</button>
-                    </div>
-                    <div class="inline-help d-none" id="help-{{ field.name }}"></div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
+        {% for section in section_groups %}
+        {% include "partials/recipe_section.html" %}
         {% endfor %}
-
-        {% if advanced_fields %}
-        <div class="card mb-3">
-            <div class="card-header">
-                <a data-bs-toggle="collapse" href="#advanced">Advanced</a>
-            </div>
-            <div id="advanced" class="collapse">
-                <div class="card-body">
-                    {% for field in advanced_fields %}
-                    <div class="mb-3">
-                        <label class="form-label">
-                            {{ field.label }}
-                            {% if field.required %}
-                            <span class="required-note">*Required</span>
-                            {% endif %}
-                        </label>
-                        <div class="input-group">
-                            <input
-                                type="{{ field.input_type or 'text' }}"
-                                name="{{ field.name }}"
-                                value="{{ form_defaults.get(field.name, field.default or '') if form_defaults else field.default or '' }}"
-                                class="form-control"
-                                {% if field.required %}required{% endif %}
-                            >
-                            <button
-                                type="button"
-                                class="btn btn-outline-secondary"
-                                onclick="toggleHelp('{{ field.name }}')"
-                            >?</button>
-                        </div>
-                        <div class="inline-help d-none" id="help-{{ field.name }}"></div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
 
         {% if redeploy_mode %}
         <div class="action-grid">
             <div class="action-card">
-                <div class="action-card-title">Redeploy App</div>
-                <p class="action-card-text">Uses your current saved setup and image version.</p>
-                <button class="btn btn-success w-100" name="action" value="deploy">
-                    Redeploy App
+                <div class="action-card-title">Review YAML &amp; Redeploy</div>
+                <p class="action-card-text">Check the generated Compose file before redeploying with your current image version.</p>
+                <button class="btn btn-success w-100" name="action" value="review_deploy">
+                    Review YAML &amp; Redeploy
                 </button>
             </div>
             <div class="action-card update">
-                <div class="action-card-title">Update Image &amp; Redeploy</div>
-                <p class="action-card-text">Checks for a newer image first, then redeploys.</p>
-                <button class="btn btn-warning w-100" name="action" value="pull_deploy">
-                    Update Image &amp; Redeploy
+                <div class="action-card-title">Review YAML, Update Image &amp; Redeploy</div>
+                <p class="action-card-text">Check the generated Compose file, then pull a newer image before redeploying.</p>
+                <button class="btn btn-warning w-100" name="action" value="review_pull_deploy">
+                    Review YAML, Update Image &amp; Redeploy
                 </button>
                 <div class="upgrade-note mb-0">
                     Use this only when you want the latest image. Newer versions may need different settings.
@@ -385,11 +286,24 @@
             </div>
         </div>
         {% else %}
-        <button class="btn btn-success w-100" name="action" value="deploy">
-            Deploy App
+        <button class="btn btn-success w-100" name="action" value="review_deploy">
+            Review YAML &amp; Deploy
         </button>
         {% endif %}
     </form>
+
+    <div class="app-footer">
+        <div class="app-footer-links">
+            <a href="https://github.com/kajain99/tsg-easydocker" target="_blank" class="app-footer-link">GitHub</a>
+            <span class="app-footer-separator">|</span>
+            <a href="https://hub.docker.com/r/kajain99/easydocker" target="_blank" class="app-footer-link">Docker Hub</a>
+            <span class="app-footer-separator">|</span>
+            <a href="https://ko-fi.com/kajain99" target="_blank" class="app-footer-link">Buy Me a Coffee</a>
+        </div>
+        <div>
+            EasyDocker installs apps. Your NAS Docker app manages them.
+        </div>
+    </div>
 </div>
 
 <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
@@ -412,8 +326,64 @@
         const helpEl = document.getElementById(`help-${field}`);
         if (!helpEl) return;
 
-        helpEl.textContent = text;
+        helpEl.innerHTML = text;
         helpEl.classList.toggle("d-none");
+    }
+
+    function togglePassword(fieldName, buttonEl) {
+        const input = document.querySelector(`input[name="${fieldName}"]`);
+        if (!input) return;
+
+        const showing = input.type === "text";
+        input.type = showing ? "password" : "text";
+        buttonEl.textContent = showing ? "Show" : "Hide";
+    }
+
+    const recipeForm = document.querySelector('form[action^="/generate/"]');
+
+    function showFieldValidation(input) {
+        if (!input) return;
+        const isInvalid = !input.checkValidity();
+        input.classList.toggle("is-invalid", isInvalid);
+
+        const errorEl = document.getElementById(`error-${input.name}`);
+        if (errorEl) {
+            errorEl.style.display = isInvalid ? "block" : "none";
+        }
+
+        if (isInvalid) {
+            const collapsedSection = input.closest(".collapse");
+            if (collapsedSection) {
+                const collapseInstance = bootstrap.Collapse.getOrCreateInstance(collapsedSection, { toggle: false });
+                collapseInstance.show();
+            }
+        }
+    }
+
+    if (recipeForm) {
+        const fieldsNeedingValidation = recipeForm.querySelectorAll("input[required], textarea[required], select[required]");
+
+        fieldsNeedingValidation.forEach((input) => {
+            input.addEventListener("input", () => showFieldValidation(input));
+            input.addEventListener("change", () => showFieldValidation(input));
+        });
+
+        recipeForm.addEventListener("submit", (event) => {
+            let firstInvalid = null;
+
+            fieldsNeedingValidation.forEach((input) => {
+                showFieldValidation(input);
+                if (!firstInvalid && !input.checkValidity()) {
+                    firstInvalid = input;
+                }
+            });
+
+            if (firstInvalid) {
+                event.preventDefault();
+                firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+                firstInvalid.focus();
+            }
+        });
     }
 </script>
 </body>

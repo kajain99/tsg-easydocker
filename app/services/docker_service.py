@@ -26,6 +26,48 @@ def get_compose_command():
     return ["docker-compose"]
 
 
+def get_available_network_options():
+    options = [
+        {
+            "label": "Create New Bridge",
+            "value": "__create_bridge__"
+        },
+        {
+            "label": "Host Mode",
+            "value": "__host__"
+        },
+    ]
+
+    discovered = []
+    try:
+        result = subprocess.run(
+            ["docker", "network", "ls", "--format", "{{.Name}}\t{{.Driver}}"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                if not line.strip():
+                    continue
+                parts = line.split("\t", 1)
+                name = parts[0].strip()
+                driver = parts[1].strip() if len(parts) > 1 else ""
+                if not name or driver in {"", "null"}:
+                    continue
+                if name in {"bridge", "host", "none"}:
+                    continue
+                discovered.append({
+                    "label": f"{name} ({driver})",
+                    "value": f"__external__:{name}"
+                })
+    except Exception:
+        pass
+
+    discovered.sort(key=lambda item: item["label"].lower())
+    options.extend(discovered)
+    return options
+
+
 def is_safe_container_name(name):
     return bool(name) and bool(SAFE_CONTAINER_NAME_RE.fullmatch(name))
 
@@ -171,10 +213,6 @@ def get_all_containers_info():
     return []
 
 
-def get_all_container_names():
-    return {container["name"] for container in get_all_containers_info()}
-
-
 def get_all_project_names():
     project_names = {
         container["project"]
@@ -239,10 +277,6 @@ def get_running_containers_info():
         g.running_containers_info = []
 
     return []
-
-
-def get_running_container_names():
-    return {container["name"] for container in get_running_containers_info()}
 
 
 def build_container_name(app_name):

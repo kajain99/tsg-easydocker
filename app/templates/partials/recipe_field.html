@@ -1,0 +1,88 @@
+{% set field_value = form_defaults.get(field.name, field.default or '') if form_defaults else field.default or '' %}
+{% if field.input_type == "select" and field_value == '' and field.options %}
+{% set field_value = field.options[0].value %}
+{% endif %}
+{% set is_editable = field.get("editable", True) %}
+<div class="mb-3">
+    {% if not is_editable %}
+    <input type="hidden" name="{{ field.name }}" value="{{ field_value }}">
+    <div class="readonly-item"><span class="readonly-label">{{ field.label }}:</span>{% if field.input_type == "select" %}{% for option in field.options or [] %}{% if option.value == field_value %}{{ option.label }}{% endif %}{% endfor %}{% else %}{{ field_value if field_value not in (None, '') else 'Not set' }}{% endif %}</div>
+    {% elif field.input_type == "textarea" %}
+    <label class="form-label">
+        {{ field.label }}
+        {% if field.required and is_editable %}
+        <span class="required-note">*Required</span>
+        {% endif %}
+    </label>
+    <div class="input-group">
+        <textarea
+            name="{{ field.name }}"
+            class="form-control"
+            rows="{{ field.rows or 3 }}"
+            {% if field.required and is_editable %}required{% endif %}
+        >{{ field_value }}</textarea>
+        <button
+            type="button"
+            class="btn btn-outline-secondary input-action-btn"
+            onclick="toggleHelp('{{ field.name }}')"
+        >?</button>
+    </div>
+    {% elif field.input_type == "select" %}
+    <label class="form-label">
+        {{ field.label }}
+        {% if field.required and is_editable %}
+        <span class="required-note">*Required</span>
+        {% endif %}
+    </label>
+    <div class="input-group">
+        <select
+            name="{{ field.name }}"
+            class="form-select"
+            {% if field.required %}required{% endif %}
+        >
+            {% for option in field.options or [] %}
+            <option value="{{ option.value }}" {% if option.value == field_value %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+        </select>
+        <button
+            type="button"
+            class="btn btn-outline-secondary input-action-btn"
+            onclick="toggleHelp('{{ field.name }}')"
+        >?</button>
+    </div>
+    {% else %}
+    <label class="form-label">
+        {{ field.label }}
+        {% if field.required and is_editable %}
+        <span class="required-note">*Required</span>
+        {% endif %}
+    </label>
+    <div class="input-group">
+        <input
+            type="{{ field.input_type or 'text' }}"
+            name="{{ field.name }}"
+            value="{{ field_value }}"
+            class="form-control"
+            {% if field.required and is_editable %}required{% endif %}
+        >
+        {% if field.input_type == "password" %}
+        <button
+            type="button"
+            class="btn btn-outline-secondary input-action-btn"
+            onclick="togglePassword('{{ field.name }}', this)"
+        >Show</button>
+        {% endif %}
+        <button
+            type="button"
+            class="btn btn-outline-secondary input-action-btn"
+            onclick="toggleHelp('{{ field.name }}')"
+        >?</button>
+    </div>
+    {% endif %}
+    {% if field.help and is_editable %}
+    <div class="inline-help {% if is_editable %}d-none{% endif %}" id="help-{{ field.name }}"{% if not is_editable %} style="display: block;"{% endif %}>{{ field.help|safe }}</div>
+    {% endif %}
+    {% if is_editable and field.required %}
+    <div class="field-error" id="error-{{ field.name }}">This field is required.</div>
+    {% endif %}
+</div>

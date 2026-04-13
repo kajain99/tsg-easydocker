@@ -179,3 +179,32 @@ h1, h2, h3, h4, h5, h6,
 .input-group > .btn {
     border-radius: 8px !important;
 }
+
+.app-footer {
+    margin: 28px auto 24px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--ed-text-muted);
+}
+
+.app-footer-links {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.app-footer-link {
+    color: var(--ed-primary);
+    text-decoration: none;
+}
+
+.app-footer-link:hover {
+    color: var(--ed-primary-hover);
+}
+
+.app-footer-separator {
+    color: #b0b8c4;
+}

@@ -1,0 +1,23 @@
+<div class="card mb-3">
+    <div class="card-header">
+        {% if section.collapsed %}
+        <a data-bs-toggle="collapse" href="#section-{{ section.name }}">{{ section.label }}</a>
+        {% else %}
+        {{ section.label }}
+        {% endif %}
+        <span class="section-meta">({{ section.fields | length }})</span>
+    </div>
+    <div id="section-{{ section.name }}" class="{% if section.collapsed %}collapse{% endif %}">
+        <div class="card-body {% if section.name == 'readonly' %}readonly-wrapper{% endif %}">
+            {% if section.name == 'readonly' %}
+            <div class="readonly-list">
+            {% endif %}
+            {% for field in section.fields %}
+            {% include "partials/recipe_field.html" %}
+            {% endfor %}
+            {% if section.name == 'readonly' %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>

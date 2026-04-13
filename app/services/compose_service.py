@@ -2,7 +2,7 @@ import re
 
 import yaml
 
-from services.yaml_service import build_app_links
+from services.yaml_service import RESERVED_RECIPE_KEYS, build_app_links
 
 
 PLACEHOLDER_RE = re.compile(r"\$\{([A-Z0-9_]+)\}")
@@ -25,20 +25,6 @@ def get_port_from_compose(compose_file):
     return None
 
 
-def get_container_name_from_compose(compose_file):
-    try:
-        with open(compose_file) as handle:
-            data = yaml.safe_load(handle)
-        services = data.get("services", {})
-        for service_data in services.values():
-            container_name = service_data.get("container_name")
-            if container_name:
-                return container_name
-    except Exception:
-        pass
-    return None
-
-
 def get_compose_data(compose_file):
     try:
         with open(compose_file) as handle:
@@ -53,12 +39,20 @@ def build_placeholder_pattern(template_value):
     last_end = 0
 
     for match in PLACEHOLDER_RE.finditer(template_value):
-        pattern_parts.append(re.escape(template_value[last_end:match.start()]))
+        literal_text = template_value[last_end:match.start()]
+        if literal_text.isspace():
+            pattern_parts.append(r"\s*")
+        else:
+            pattern_parts.append(re.escape(literal_text))
         placeholder_names.append(match.group(1))
-        pattern_parts.append("(.+?)")
+        pattern_parts.append("(.*?)")
         last_end = match.end()
 
-    pattern_parts.append(re.escape(template_value[last_end:]))
+    trailing_literal = template_value[last_end:]
+    if trailing_literal.isspace():
+        pattern_parts.append(r"\s*")
+    else:
+        pattern_parts.append(re.escape(trailing_literal))
     return re.compile("^" + "".join(pattern_parts) + "$"), placeholder_names
 
 
@@ -72,7 +66,13 @@ def extract_values_from_template(template_value, actual_value, extracted_values)
         if len(matches) == 1 and matches[0].span() == (0, len(template_value)):
             placeholder_name = matches[0].group(1)
             if placeholder_name != "PROJECT_NAME":
-                extracted_values.setdefault(placeholder_name, actual_string)
+                if isinstance(actual_value, (list, dict)):
+                    extracted_values.setdefault(
+                        placeholder_name,
+                        yaml.safe_dump(actual_value, sort_keys=False).strip()
+                    )
+                else:
+                    extracted_values.setdefault(placeholder_name, actual_string)
             return
 
         pattern, placeholder_names = build_placeholder_pattern(template_value)
@@ -99,12 +99,12 @@ def extract_values_from_template(template_value, actual_value, extracted_values)
 def build_form_defaults_from_compose(recipe, compose_data):
     defaults = {}
     extracted_values = {}
-    actual_services = compose_data.get("services", {})
 
-    for service_name, service_template in recipe.get("services", {}).items():
-        actual_service = actual_services.get(service_name)
-        if actual_service:
-            extract_values_from_template(service_template, actual_service, extracted_values)
+    for top_level_key, template_value in recipe.items():
+        if top_level_key in RESERVED_RECIPE_KEYS:
+            continue
+        if top_level_key in compose_data:
+            extract_values_from_template(template_value, compose_data[top_level_key], extracted_values)
 
     for field in recipe.get("fields", []):
         field_name = field["name"]
@@ -119,11 +119,15 @@ def build_app_links_from_compose(recipe, compose_data, project_name, host):
 
 
 def build_unsupported_compose_items(recipe, compose_data):
-    services = compose_data.get("services", {})
-    if not services:
+    if not compose_data:
         return []
 
     unsupported_items = []
+    recipe_compose = {
+        key: value
+        for key, value in recipe.items()
+        if key not in RESERVED_RECIPE_KEYS
+    }
 
     def template_matches(template_value, actual_value):
         if isinstance(template_value, str):
@@ -144,7 +148,7 @@ def build_unsupported_compose_items(recipe, compose_data):
                 for actual_child in actual_value
             )
 
-        return True
+        return template_value == actual_value
 
     def format_yaml_value(value):
         if isinstance(value, dict):
@@ -186,25 +190,19 @@ def build_unsupported_compose_items(recipe, compose_data):
                     items.append(format_unsupported_item(prefix, actual_child))
             return items
 
+        if not template_matches(template_value, actual_value):
+            items.append(format_unsupported_item(prefix, prefix.split(".")[-1], actual_value))
         return items
 
-    recipe_services = recipe.get("services", {})
-    extra_services = sorted(service_name for service_name in services.keys() if service_name not in recipe_services)
-    for service_name in extra_services:
-        unsupported_items.append(f"service: {service_name}")
-
-    for service_name, actual_service in services.items():
-        recipe_service = recipe_services.get(service_name)
-        if not recipe_service:
-            continue
-        unsupported_items.extend(
-            collect_unsupported(recipe_service, actual_service, f"services.{service_name}")
+    for top_level_key in sorted(compose_data.keys() - recipe_compose.keys()):
+        unsupported_items.append(
+            format_unsupported_item("top_level", top_level_key, compose_data[top_level_key])
         )
 
-    actual_volumes = compose_data.get("volumes", {})
-    recipe_volumes = recipe.get("volumes", {})
-    for volume_name in sorted(actual_volumes.keys() - recipe_volumes.keys()):
-        unsupported_items.append(f"top-level volume: {volume_name}")
+    for top_level_key in sorted(compose_data.keys() & recipe_compose.keys()):
+        unsupported_items.extend(
+            collect_unsupported(recipe_compose[top_level_key], compose_data[top_level_key], top_level_key)
+        )
 
     return unsupported_items
 
@@ -284,6 +282,8 @@ def build_compose_summary_from_compose(compose_data, project_containers=None):
             "container_name": service_data.get("container_name"),
             "status": matching_container.get("state") if matching_container else "config only",
             "image": service_data.get("image"),
+            "command": service_data.get("command"),
+            "entrypoint": service_data.get("entrypoint"),
             "ports": ports,
             "volumes": volumes,
             "restart": service_data.get("restart"),

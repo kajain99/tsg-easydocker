@@ -1,10 +1,9 @@
+import html
 import json
 import subprocess
 import threading
 import time
 import uuid
-
-from flask import render_template
 
 
 _DEPLOYMENT_RUNS = {}
@@ -83,20 +82,24 @@ def _cleanup_deployment_runs_locked():
         _DEPLOYMENT_RUNS.pop(run_id, None)
 
 
-def build_deployment_result_payloads(compose_summary, app_links):
-    if compose_summary:
-        summary_html = render_template("partials/compose_summary.html", compose_summary=compose_summary)
+def build_deployment_result_payloads(compose_yaml, app_links):
+    if compose_yaml:
+        compose_preview_html = (
+            '<div class="compose-preview-card">'
+            f'<pre class="compose-preview">{html.escape(compose_yaml)}</pre>'
+            '</div>'
+        )
         details_html = (
             '<a class="details-toggle" data-bs-toggle="collapse" href="#technical-details" role="button" '
             'aria-expanded="false" aria-controls="technical-details">Show technical details</a>'
-            f'<div id="technical-details" class="collapse technical-details">{summary_html}</div>'
+            f'<div id="technical-details" class="collapse technical-details">{compose_preview_html}</div>'
         )
     else:
         details_html = ""
 
     if app_links:
         action_links = "".join(
-            f'<a href="{app_link["url"]}" target="_blank" class="btn btn-primary">{app_link["label"]}</a>'
+            f'<a href="{html.escape(app_link["url"], quote=True)}" target="_blank" class="btn btn-primary">{html.escape(app_link["label"])}</a>'
             for app_link in app_links
         )
         success_actions_html = (
@@ -114,7 +117,7 @@ def build_deployment_result_payloads(compose_summary, app_links):
         "success": {
             "kind": "success",
             "title": "Deployment completed",
-            "message": "Your app is up. Use the action below or open the technical details if you want the full compose summary.",
+            "message": "Your app is up. Use the action below or open the technical details if you want the generated Compose file.",
             "actions_html": success_actions_html,
             "details_html": details_html,
         },
