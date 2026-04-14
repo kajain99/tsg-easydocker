@@ -1,6 +1,6 @@
 {
   "name": "immich",
-  "version": 3,
+  "version": 4,
   "description": "Photo and video backup with search, AI features, and a built-in database stack",
   "services": {
     "immich-server": {
@@ -8,7 +8,12 @@
       "image": "${IMMICH_SERVER_IMAGE}",
       "volumes": [
         "${UPLOAD_LOCATION}:${IMMICH_UPLOAD_TARGET}",
-        "${LOCALTIME_BIND}"
+        "${LOCALTIME_BIND}",
+        "${IMMICH_EXTRA_MOUNT_1}",
+        "${IMMICH_EXTRA_MOUNT_2}",
+        "${IMMICH_EXTRA_MOUNT_3}",
+        "${IMMICH_EXTRA_MOUNT_4}",
+        "${IMMICH_EXTRA_MOUNT_5}"
       ],
       "environment": {
         "TZ": "${TZ}",
@@ -258,6 +263,51 @@
       "help": "Usually leave this disabled flag set to <code>No</code>."
     },
     {
+      "name": "IMMICH_EXTRA_MOUNT_1",
+      "label": "Extra Mount 1",
+      "section": "advanced",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Optional extra bind mount for the main Immich server in the format <code>/host/path:/container/path</code> or <code>/host/path:/container/path:ro</code>."
+    },
+    {
+      "name": "IMMICH_EXTRA_MOUNT_2",
+      "label": "Extra Mount 2",
+      "section": "advanced",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Optional extra bind mount for the main Immich server in the format <code>/host/path:/container/path</code> or <code>/host/path:/container/path:ro</code>."
+    },
+    {
+      "name": "IMMICH_EXTRA_MOUNT_3",
+      "label": "Extra Mount 3",
+      "section": "advanced",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Optional extra bind mount for the main Immich server in the format <code>/host/path:/container/path</code> or <code>/host/path:/container/path:ro</code>."
+    },
+    {
+      "name": "IMMICH_EXTRA_MOUNT_4",
+      "label": "Extra Mount 4",
+      "section": "advanced",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Optional extra bind mount for the main Immich server in the format <code>/host/path:/container/path</code> or <code>/host/path:/container/path:ro</code>."
+    },
+    {
+      "name": "IMMICH_EXTRA_MOUNT_5",
+      "label": "Extra Mount 5",
+      "section": "advanced",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Optional extra bind mount for the main Immich server in the format <code>/host/path:/container/path</code> or <code>/host/path:/container/path:ro</code>."
+    },
+    {
       "name": "IMMICH_SERVER_CONTAINER_NAME",
       "label": "Server Container Name",
       "section": "readonly",
@@ -505,7 +555,8 @@
       "Four containers will be created as one compose project",
       "Your photos and videos will be stored in the library folder you choose",
       "Postgres and model cache data will be stored in their own folders",
-      "The web app will open on the port you choose"
+      "The web app will open on the port you choose",
+      "You can optionally add up to five extra bind mounts to the main Immich server"
     ],
     "data_location": "Each storage field can be relative to this app's config folder or an absolute path."
   }
