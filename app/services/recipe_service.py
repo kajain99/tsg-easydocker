@@ -5,6 +5,7 @@ import bleach
 
 from app_config import RECIPES_PATH, SAFE_RECIPE_NAME_RE
 from services.docker_service import get_available_network_options
+from services.host_path_service import build_project_host_path
 from services.yaml_service import RESERVED_RECIPE_KEYS
 
 
@@ -182,13 +183,49 @@ def _validate_compose_value(value, allowed_placeholders, path):
         )
 
 
-def build_recipe_field_sections(recipe):
+def build_field_display_value(field, form_defaults=None):
+    field_value = field.get("default", "")
+    if form_defaults and field.get("name") in form_defaults:
+        field_value = form_defaults.get(field.get("name"))
+
+    if field.get("input_type") == "select" and field_value == "":
+        options = field.get("options") or []
+        if options:
+            field_value = options[0].get("value", "")
+
+    return field_value
+
+
+def get_resolved_host_path(field, field_value, project_name):
+    if not project_name or not isinstance(field_value, str):
+        return None
+
+    if not field_value.startswith("./"):
+        return None
+
+    return build_project_host_path(project_name, field_value)
+
+
+def build_recipe_field_sections(recipe, form_defaults=None, project_name=None):
     fields = recipe.get("fields", [])
     fields_by_section = {}
+    project_host_path = build_project_host_path(project_name, "./") if project_name else None
     for field in fields:
         field_copy = dict(field)
         if field_copy.get("options_source") == "docker_networks":
             field_copy["options"] = get_available_network_options()
+        field_value = build_field_display_value(field_copy, form_defaults)
+        field_copy["project_host_path"] = project_host_path
+        field_copy["show_resolved_host_path"] = (
+            field_copy.get("editable", True)
+            and field_copy.get("input_type") in {"text", "textarea"}
+            and bool(project_host_path)
+        )
+        field_copy["resolved_host_path"] = get_resolved_host_path(
+            field_copy,
+            field_value,
+            project_name,
+        )
         section_name = field["section"]
         fields_by_section.setdefault(section_name, []).append(field_copy)
 

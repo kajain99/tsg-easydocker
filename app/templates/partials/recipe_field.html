@@ -19,6 +19,7 @@
             name="{{ field.name }}"
             class="form-control"
             rows="{{ field.rows or 3 }}"
+            {% if field.show_resolved_host_path %}data-project-host-path="{{ field.project_host_path }}"{% endif %}
             {% if field.required and is_editable %}required{% endif %}
         >{{ field_value }}</textarea>
         <button
@@ -63,6 +64,7 @@
             name="{{ field.name }}"
             value="{{ field_value }}"
             class="form-control"
+            {% if field.show_resolved_host_path %}data-project-host-path="{{ field.project_host_path }}"{% endif %}
             {% if field.required and is_editable %}required{% endif %}
         >
         {% if field.input_type == "password" %}
@@ -81,6 +83,14 @@
     {% endif %}
     {% if field.help and is_editable %}
     <div class="inline-help {% if is_editable %}d-none{% endif %}" id="help-{{ field.name }}"{% if not is_editable %} style="display: block;"{% endif %}>{{ field.help|safe }}</div>
+    {% endif %}
+    {% if field.show_resolved_host_path %}
+    <div
+        class="inline-help{% if not field.resolved_host_path %} d-none{% endif %}"
+        id="resolved-{{ field.name }}"
+    >
+        <strong>Resolved host path:</strong> <code>{{ field.resolved_host_path }}</code>
+    </div>
     {% endif %}
     {% if is_editable and field.required %}
     <div class="field-error" id="error-{{ field.name }}">This field is required.</div>

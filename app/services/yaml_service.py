@@ -2,6 +2,8 @@ import re
 
 import yaml
 
+from services.host_path_service import build_project_host_path
+
 
 PLACEHOLDER_RE = re.compile(r"\$\{([A-Z0-9_]+)\}")
 RESERVED_RECIPE_KEYS = {"name", "version", "description", "fields", "ui", "app_links"}
@@ -138,6 +140,55 @@ def prune_compose_value(value, parent_key=None):
     return value
 
 
+def resolve_relative_bind_mount_string(volume_value, project_name):
+    if not isinstance(volume_value, str):
+        return volume_value
+
+    parts = volume_value.split(":")
+    if len(parts) < 2:
+        return volume_value
+
+    source = parts[0]
+    if not source.startswith("./"):
+        return volume_value
+
+    resolved_source = build_project_host_path(project_name, source)
+    if not resolved_source:
+        return volume_value
+
+    return ":".join([resolved_source, *parts[1:]])
+
+
+def resolve_relative_bind_mount_item(volume_item, project_name):
+    if isinstance(volume_item, str):
+        return resolve_relative_bind_mount_string(volume_item, project_name)
+
+    if isinstance(volume_item, dict):
+        source = volume_item.get("source")
+        if isinstance(source, str) and source.startswith("./"):
+            resolved_source = build_project_host_path(project_name, source)
+            if resolved_source:
+                resolved_item = dict(volume_item)
+                resolved_item["source"] = resolved_source
+                return resolved_item
+
+    return volume_item
+
+
+def resolve_relative_bind_mounts(compose, project_name):
+    services = compose.get("services", {})
+    for service_name, service_data in services.items():
+        volumes = service_data.get("volumes")
+        if not isinstance(volumes, list):
+            continue
+        services[service_name]["volumes"] = [
+            resolve_relative_bind_mount_item(volume_item, project_name)
+            for volume_item in volumes
+        ]
+
+    return compose
+
+
 def generate_compose(recipe, form_data, project_name):
     field_values = build_field_values(recipe, form_data, project_name)
     compose = {}
@@ -152,7 +203,7 @@ def generate_compose(recipe, form_data, project_name):
             continue
         compose[top_level_key] = cleaned_value
 
-    return compose
+    return resolve_relative_bind_mounts(compose, project_name)
 
 
 def build_app_links(recipe, form_data, project_name, host):

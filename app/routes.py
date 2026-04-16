@@ -57,13 +57,20 @@ def action_pulls_first(action):
 
 
 def build_recipe_form_context(recipe, form_defaults=None, port_conflicts=None, existing_config_name=None):
+    project_name = existing_config_name or build_container_name(recipe["name"])
     context = {
         "recipe": recipe,
         "form_defaults": form_defaults or {},
     }
     if port_conflicts:
         context["port_conflicts"] = port_conflicts
-    context.update(build_recipe_field_sections(recipe))
+    context.update(
+        build_recipe_field_sections(
+            recipe,
+            form_defaults=form_defaults,
+            project_name=project_name,
+        )
+    )
     if existing_config_name:
         context.update(build_existing_config_context(existing_config_name, recipe))
     return context
@@ -130,6 +137,7 @@ def build_deploy_display_context(compose_summary, folder_path, pull_first):
 
 def render_recipe_review_page(recipe, yaml_output, compose_summary, form_items, container_name, pull_first):
     display_context = build_deploy_display_context(compose_summary, BASE_CONFIG / container_name, pull_first)
+    form_defaults = dict(form_items)
     return render_template(
         "review_deploy.html",
         recipe=recipe,
@@ -140,7 +148,13 @@ def render_recipe_review_page(recipe, yaml_output, compose_summary, form_items, 
         ports_display=display_context["ports_display"],
         final_action="pull_deploy" if pull_first else "deploy",
         form_items=form_items,
+        form_defaults=form_defaults,
         container_name=container_name,
+        **build_recipe_field_sections(
+            recipe,
+            form_defaults=form_defaults,
+            project_name=container_name,
+        ),
     )
 
 
@@ -199,7 +213,10 @@ def register_routes(app):
         return render_template(
             "recipe_v2.html",
             recipe=recipe,
-            **build_recipe_field_sections(recipe)
+            **build_recipe_field_sections(
+                recipe,
+                project_name=build_container_name(recipe["name"]),
+            )
         )
 
     @app.route("/generate/<name>", methods=["POST"])

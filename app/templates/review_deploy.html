@@ -64,6 +64,28 @@
             border-radius: 8px;
             padding: 14px;
         }
+        .resolved-paths-card {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 14px;
+            margin-top: 18px;
+        }
+        .resolved-path-item + .resolved-path-item {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .resolved-path-label {
+            font-size: 13px;
+            color: #5f6b7a;
+            margin-bottom: 4px;
+        }
+        .resolved-path-value {
+            font-size: 13px;
+            color: #1f2937;
+            word-break: break-word;
+        }
         .compose-preview {
             margin: 0;
             font-family: Consolas, monospace;
@@ -124,6 +146,29 @@
                 <pre class="compose-preview">{{ compose_yaml }}</pre>
             </div>
         </div>
+
+        {% set resolved_fields = [] %}
+        {% for section in section_groups %}
+            {% for field in section.fields %}
+                {% if field.resolved_host_path %}
+                    {% set _ = resolved_fields.append(field) %}
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+        {% if resolved_fields %}
+        <div class="resolved-paths-card">
+            <div class="summary-section-title mb-3">Resolved Storage Paths</div>
+            {% for field in resolved_fields %}
+            <div class="resolved-path-item">
+                <div class="resolved-path-label">{{ field.label }}</div>
+                <div class="resolved-path-value">
+                    <div>Recipe path: <code>{{ form_defaults.get(field.name, field.default or '') }}</code></div>
+                    <div>Resolved host path: <code>{{ field.resolved_host_path }}</code></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <form method="POST" action="/generate/{{ recipe.name }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -73,6 +73,29 @@ For Linux and NAS deployments, EasyDocker writes each app into its own project f
 
 So a relative bind like `./tailscale_data` is intended to resolve under that same project folder.
 
+EasyDocker keeps that relative `./...` value in the recipe so recipes stay portable, but in the UI it also shows the resolved host path for transparency. In other words:
+
+- `./something` is expanded into the current app's project folder under your mounted base config path
+- an absolute path such as `/volume1/docker/appdata` is left exactly as written
+
+For example, if your mounted host base config path is:
+
+```text
+/volume1/host_tsg
+```
+
+then a recipe value like:
+
+```text
+./tailscale_data
+```
+
+resolves to:
+
+```text
+/volume1/host_tsg/tsg_tailscale/tailscale_data
+```
+
 On Windows with Docker Desktop, bind-mount path resolution may not map back to normal host-visible Windows paths as cleanly as it does on Linux. EasyDocker is designed primarily for Linux and NAS-style Docker hosts, and that storage model is the one we recommend.
 
 ## Security Notes
@@ -169,10 +192,13 @@ EASYDOCKER_PASSWORD
 EASYDOCKER_HOST
 EASYDOCKER_PORT
 EASYDOCKER_BASE_CONFIG
+EASYDOCKER_HOST_BASE_CONFIG
 EASYDOCKER_SECRET_KEY
 ```
 
 `EASYDOCKER_BASE_CONFIG` is optional only if you mount your persistent folder at `/base_config`, which is the default expected path. If you want to use a different in-container path, set `EASYDOCKER_BASE_CONFIG` to that mounted path.
+
+`EASYDOCKER_HOST_BASE_CONFIG` is optional and normally does not need to be set. EasyDocker tries to detect the host-side source path of the required `/base_config` bind automatically through the Docker socket so it can expand relative bind mounts into real host paths. Set this only if you want to override that detected host base path manually.
 
 Typical example:
 

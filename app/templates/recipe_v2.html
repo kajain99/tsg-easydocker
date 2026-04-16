@@ -339,6 +339,47 @@
         buttonEl.textContent = showing ? "Show" : "Hide";
     }
 
+    function buildResolvedHostPath(projectHostPath, rawValue) {
+        if (!projectHostPath || typeof rawValue !== "string") {
+            return null;
+        }
+
+        const trimmedValue = rawValue.trim();
+        if (!trimmedValue.startsWith("./")) {
+            return null;
+        }
+
+        const suffix = trimmedValue.slice(2).replace(/^\/+/, "");
+        if (!suffix) {
+            return projectHostPath;
+        }
+
+        return `${projectHostPath}/${suffix}`;
+    }
+
+    function updateResolvedPath(input) {
+        if (!input) return;
+
+        const projectHostPath = input.dataset.projectHostPath;
+        if (!projectHostPath) return;
+
+        const resolvedWrapper = document.getElementById(`resolved-${input.name}`);
+        if (!resolvedWrapper) return;
+
+        const resolvedCode = resolvedWrapper.querySelector("code");
+        if (!resolvedCode) return;
+
+        const resolvedPath = buildResolvedHostPath(projectHostPath, input.value || "");
+        if (!resolvedPath) {
+            resolvedWrapper.classList.add("d-none");
+            resolvedCode.textContent = "";
+            return;
+        }
+
+        resolvedCode.textContent = resolvedPath;
+        resolvedWrapper.classList.remove("d-none");
+    }
+
     const recipeForm = document.querySelector('form[action^="/generate/"]');
 
     function showFieldValidation(input) {
@@ -362,10 +403,17 @@
 
     if (recipeForm) {
         const fieldsNeedingValidation = recipeForm.querySelectorAll("input[required], textarea[required], select[required]");
+        const resolvedPathInputs = recipeForm.querySelectorAll("[data-project-host-path]");
 
         fieldsNeedingValidation.forEach((input) => {
             input.addEventListener("input", () => showFieldValidation(input));
             input.addEventListener("change", () => showFieldValidation(input));
+        });
+
+        resolvedPathInputs.forEach((input) => {
+            updateResolvedPath(input);
+            input.addEventListener("input", () => updateResolvedPath(input));
+            input.addEventListener("change", () => updateResolvedPath(input));
         });
 
         recipeForm.addEventListener("submit", (event) => {
