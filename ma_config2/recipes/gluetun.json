@@ -1,0 +1,569 @@
+{
+  "name": "gluetun",
+  "version": 1,
+  "description": "VPN gateway container for routing other apps through OpenVPN or WireGuard",
+  "services": {
+    "gluetun": {
+      "container_name": "${GLUETUN_CONTAINER_NAME}",
+      "image": "${GLUETUN_IMAGE}",
+      "restart": "${RESTART_POLICY}",
+      "cap_add": [
+        "${GLUETUN_CAP_ADD_NET_ADMIN}"
+      ],
+      "devices": [
+        "${GLUETUN_TUN_DEVICE}"
+      ],
+      "ports": "${GLUETUN_PUBLISHED_PORTS}",
+      "volumes": [
+        "${GLUETUN_STORAGE_LOCATION}:${GLUETUN_STORAGE_TARGET}"
+      ],
+      "environment": {
+        "TZ": "${TZ}",
+        "VPN_SERVICE_PROVIDER": "${VPN_SERVICE_PROVIDER}",
+        "VPN_TYPE": "${VPN_TYPE}",
+        "OPENVPN_USER": "${OPENVPN_USER}",
+        "OPENVPN_PASSWORD": "${OPENVPN_PASSWORD}",
+        "WIREGUARD_PRIVATE_KEY": "${WIREGUARD_PRIVATE_KEY}",
+        "WIREGUARD_ADDRESSES": "${WIREGUARD_ADDRESSES}",
+        "SERVER_COUNTRIES": "${SERVER_COUNTRIES}",
+        "SERVER_REGIONS": "${SERVER_REGIONS}",
+        "SERVER_CITIES": "${SERVER_CITIES}",
+        "SERVER_HOSTNAMES": "${SERVER_HOSTNAMES}",
+        "PORT_FORWARD_ONLY": "${PORT_FORWARD_ONLY}",
+        "VPN_PORT_FORWARDING": "${VPN_PORT_FORWARDING}",
+        "DOT": "${DOT}",
+        "BLOCK_MALICIOUS": "${BLOCK_MALICIOUS}",
+        "BLOCK_SURVEILLANCE": "${BLOCK_SURVEILLANCE}",
+        "BLOCK_ADS": "${BLOCK_ADS}",
+        "FREE_ONLY": "${FREE_ONLY}",
+        "STREAM_ONLY": "${STREAM_ONLY}",
+        "SECURE_CORE_ONLY": "${SECURE_CORE_ONLY}",
+        "TOR_ONLY": "${TOR_ONLY}"
+      }
+    }
+  },
+  "fields": [
+    {
+      "name": "GLUETUN_STORAGE_LOCATION",
+      "label": "Gluetun Data Folder",
+      "section": "required",
+      "input_type": "text",
+      "required": true,
+      "default": "./gluetun",
+      "help": "Stores Gluetun state, server data, and port-forwarding data so the container can reuse it after restart."
+    },
+    {
+      "name": "VPN_SERVICE_PROVIDER",
+      "label": "VPN Provider",
+      "section": "required",
+      "input_type": "select",
+      "required": true,
+      "default": "mullvad",
+      "options": [
+        {
+          "label": "AirVPN",
+          "value": "airvpn"
+        },
+        {
+          "label": "CyberGhost",
+          "value": "cyberghost"
+        },
+        {
+          "label": "ExpressVPN",
+          "value": "expressvpn"
+        },
+        {
+          "label": "FastestVPN",
+          "value": "fastestvpn"
+        },
+        {
+          "label": "Giganews",
+          "value": "giganews"
+        },
+        {
+          "label": "HideMyAss",
+          "value": "hidemyass"
+        },
+        {
+          "label": "IPVanish",
+          "value": "ipvanish"
+        },
+        {
+          "label": "IVPN",
+          "value": "ivpn"
+        },
+        {
+          "label": "Mullvad",
+          "value": "mullvad"
+        },
+        {
+          "label": "NordVPN",
+          "value": "nordvpn"
+        },
+        {
+          "label": "Perfect Privacy",
+          "value": "perfect privacy"
+        },
+        {
+          "label": "Privado",
+          "value": "privado"
+        },
+        {
+          "label": "Private Internet Access",
+          "value": "private internet access"
+        },
+        {
+          "label": "PrivateVPN",
+          "value": "privatevpn"
+        },
+        {
+          "label": "ProtonVPN",
+          "value": "protonvpn"
+        },
+        {
+          "label": "PureVPN",
+          "value": "purevpn"
+        },
+        {
+          "label": "SlickVPN",
+          "value": "slickvpn"
+        },
+        {
+          "label": "Surfshark",
+          "value": "surfshark"
+        },
+        {
+          "label": "TorGuard",
+          "value": "torguard"
+        },
+        {
+          "label": "VPN Secure",
+          "value": "vpn secure"
+        },
+        {
+          "label": "VPN Unlimited",
+          "value": "vpn unlimited"
+        },
+        {
+          "label": "VyprVPN",
+          "value": "vyprvpn"
+        },
+        {
+          "label": "Windscribe",
+          "value": "windscribe"
+        }
+      ],
+      "help": "Choose the provider you already subscribe to. The stored value matches the official Gluetun provider name."
+    },
+    {
+      "name": "VPN_TYPE",
+      "label": "VPN Type",
+      "section": "required",
+      "input_type": "select",
+      "required": true,
+      "default": "wireguard",
+      "options": [
+        {
+          "label": "WireGuard",
+          "value": "wireguard"
+        },
+        {
+          "label": "OpenVPN",
+          "value": "openvpn"
+        }
+      ],
+      "help": "Pick the connection type supported by your provider account. Many providers now prefer WireGuard."
+    },
+    {
+      "name": "TZ",
+      "label": "Timezone",
+      "section": "required",
+      "input_type": "text",
+      "required": false,
+      "default": "Etc/UTC",
+      "help": "Timezone for logs and scheduled refresh behavior.<br>Example: <code>Asia/Dubai</code>."
+    },
+    {
+      "name": "OPENVPN_USER",
+      "label": "OpenVPN Username",
+      "section": "required",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Needed when your provider uses OpenVPN username/password authentication.<br>For NordVPN, use your service credentials, not your website login."
+    },
+    {
+      "name": "OPENVPN_PASSWORD",
+      "label": "OpenVPN Password",
+      "section": "required",
+      "input_type": "password",
+      "required": false,
+      "default": "",
+      "help": "Needed together with the OpenVPN username when your provider uses OpenVPN authentication."
+    },
+    {
+      "name": "WIREGUARD_PRIVATE_KEY",
+      "label": "WireGuard Private Key",
+      "section": "required",
+      "input_type": "password",
+      "required": false,
+      "default": "",
+      "help": "Needed when your provider uses WireGuard. Paste the private key exactly as given by your provider."
+    },
+    {
+      "name": "WIREGUARD_ADDRESSES",
+      "label": "WireGuard Addresses",
+      "section": "required",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Some providers also require WireGuard client addresses.<br>Example: <code>10.64.222.21/32</code>."
+    },
+    {
+      "name": "SERVER_COUNTRIES",
+      "label": "Server Countries",
+      "section": "optional",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Optional comma-separated country filter.<br>Example: <code>Netherlands,Switzerland</code>."
+    },
+    {
+      "name": "SERVER_REGIONS",
+      "label": "Server Regions",
+      "section": "optional",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Optional comma-separated region filter."
+    },
+    {
+      "name": "SERVER_CITIES",
+      "label": "Server Cities",
+      "section": "optional",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Optional comma-separated city filter."
+    },
+    {
+      "name": "SERVER_HOSTNAMES",
+      "label": "Server Hostnames",
+      "section": "optional",
+      "input_type": "text",
+      "required": false,
+      "default": "",
+      "help": "Optional comma-separated hostname filter.<br>Use only if you know the exact server names you want."
+    },
+    {
+      "name": "RESTART_POLICY",
+      "label": "Restart Policy",
+      "section": "optional",
+      "input_type": "select",
+      "required": true,
+      "default": "unless-stopped",
+      "options": [
+        {
+          "label": "Unless Stopped",
+          "value": "unless-stopped"
+        },
+        {
+          "label": "Always",
+          "value": "always"
+        },
+        {
+          "label": "On Failure",
+          "value": "on-failure"
+        },
+        {
+          "label": "No",
+          "value": "no"
+        }
+      ],
+      "help": "Controls whether the container restarts automatically."
+    },
+    {
+      "name": "PORT_FORWARD_ONLY",
+      "label": "Port Forwarding Servers Only",
+      "section": "optional",
+      "input_type": "select",
+      "required": true,
+      "default": "off",
+      "options": [
+        {
+          "label": "No",
+          "value": "off"
+        },
+        {
+          "label": "Yes",
+          "value": "on"
+        }
+      ],
+      "help": "Restrict matching to providers or servers that support port forwarding."
+    },
+    {
+      "name": "DOT",
+      "label": "DNS over TLS",
+      "section": "optional",
+      "input_type": "select",
+      "required": true,
+      "default": "on",
+      "options": [
+        {
+          "label": "On",
+          "value": "on"
+        },
+        {
+          "label": "Off",
+          "value": "off"
+        }
+      ],
+      "help": "Encrypts DNS queries made by Gluetun."
+    },
+    {
+      "name": "BLOCK_MALICIOUS",
+      "label": "Block Malicious Domains",
+      "section": "optional",
+      "input_type": "select",
+      "required": true,
+      "default": "on",
+      "options": [
+        {
+          "label": "On",
+          "value": "on"
+        },
+        {
+          "label": "Off",
+          "value": "off"
+        }
+      ],
+      "help": "Enable Gluetun DNS filtering for known malicious domains."
+    },
+    {
+      "name": "BLOCK_SURVEILLANCE",
+      "label": "Block Surveillance Domains",
+      "section": "optional",
+      "input_type": "select",
+      "required": true,
+      "default": "off",
+      "options": [
+        {
+          "label": "Off",
+          "value": "off"
+        },
+        {
+          "label": "On",
+          "value": "on"
+        }
+      ],
+      "help": "Optional DNS filtering for telemetry and surveillance domains."
+    },
+    {
+      "name": "BLOCK_ADS",
+      "label": "Block Ad Domains",
+      "section": "optional",
+      "input_type": "select",
+      "required": true,
+      "default": "off",
+      "options": [
+        {
+          "label": "Off",
+          "value": "off"
+        },
+        {
+          "label": "On",
+          "value": "on"
+        }
+      ],
+      "help": "Optional DNS filtering for ad domains."
+    },
+    {
+      "name": "GLUETUN_PUBLISHED_PORTS",
+      "label": "Published Ports",
+      "section": "advanced",
+      "input_type": "textarea",
+      "data_type": "yaml",
+      "rows": 4,
+      "required": false,
+      "default": "",
+      "help": "Optional YAML list of ports to publish on the Gluetun container.<br>Useful later for apps routed through Gluetun, such as Transmission.<br>Example:<br><code>- \"9091:9091\"</code><br><code>- \"51413:51413\"</code><br><code>- \"51413:51413/udp\"</code>"
+    },
+    {
+      "name": "VPN_PORT_FORWARDING",
+      "label": "VPN Port Forwarding",
+      "section": "advanced",
+      "input_type": "select",
+      "required": true,
+      "default": "off",
+      "options": [
+        {
+          "label": "Off",
+          "value": "off"
+        },
+        {
+          "label": "On",
+          "value": "on"
+        }
+      ],
+      "help": "Enable provider-supported VPN server port forwarding."
+    },
+    {
+      "name": "FREE_ONLY",
+      "label": "Proton Free Servers Only",
+      "section": "advanced",
+      "input_type": "select",
+      "required": true,
+      "default": "off",
+      "options": [
+        {
+          "label": "Off",
+          "value": "off"
+        },
+        {
+          "label": "On",
+          "value": "on"
+        }
+      ],
+      "help": "ProtonVPN only. Restrict matching to free servers."
+    },
+    {
+      "name": "STREAM_ONLY",
+      "label": "Proton Streaming Servers Only",
+      "section": "advanced",
+      "input_type": "select",
+      "required": true,
+      "default": "off",
+      "options": [
+        {
+          "label": "Off",
+          "value": "off"
+        },
+        {
+          "label": "On",
+          "value": "on"
+        }
+      ],
+      "help": "ProtonVPN only. Restrict matching to streaming-optimized servers."
+    },
+    {
+      "name": "SECURE_CORE_ONLY",
+      "label": "Proton Secure Core Only",
+      "section": "advanced",
+      "input_type": "select",
+      "required": true,
+      "default": "off",
+      "options": [
+        {
+          "label": "Off",
+          "value": "off"
+        },
+        {
+          "label": "On",
+          "value": "on"
+        }
+      ],
+      "help": "ProtonVPN only. Restrict matching to Secure Core servers."
+    },
+    {
+      "name": "TOR_ONLY",
+      "label": "Proton Tor Servers Only",
+      "section": "advanced",
+      "input_type": "select",
+      "required": true,
+      "default": "off",
+      "options": [
+        {
+          "label": "Off",
+          "value": "off"
+        },
+        {
+          "label": "On",
+          "value": "on"
+        }
+      ],
+      "help": "ProtonVPN only. Restrict matching to Tor-over-VPN servers."
+    },
+    {
+      "name": "GLUETUN_CONTAINER_NAME",
+      "label": "Container Name",
+      "section": "readonly",
+      "input_type": "text",
+      "required": true,
+      "default": "${PROJECT_NAME}",
+      "editable": false,
+      "help": "EasyDocker sets the container name from the project name."
+    },
+    {
+      "name": "GLUETUN_IMAGE",
+      "label": "Image",
+      "section": "readonly",
+      "input_type": "text",
+      "required": true,
+      "default": "qmcgaw/gluetun:latest",
+      "editable": false,
+      "help": "Recipe-managed Gluetun image."
+    },
+    {
+      "name": "GLUETUN_STORAGE_TARGET",
+      "label": "Data Path Inside Container",
+      "section": "readonly",
+      "input_type": "text",
+      "required": true,
+      "default": "/gluetun",
+      "editable": false,
+      "help": "Recipe-managed internal path where Gluetun stores state and server data."
+    },
+    {
+      "name": "GLUETUN_CAP_ADD_NET_ADMIN",
+      "label": "Linux Capability: NET_ADMIN",
+      "section": "readonly",
+      "input_type": "text",
+      "required": true,
+      "default": "NET_ADMIN",
+      "editable": false,
+      "help": "Required capability for Gluetun to manage VPN networking."
+    },
+    {
+      "name": "GLUETUN_TUN_DEVICE",
+      "label": "TUN Device Mapping",
+      "section": "readonly",
+      "input_type": "text",
+      "required": true,
+      "default": "/dev/net/tun:/dev/net/tun",
+      "editable": false,
+      "help": "Provides access to the Linux TUN device required by the VPN tunnel."
+    }
+  ],
+  "ui": {
+    "sections": [
+      {
+        "name": "required",
+        "label": "Minimum Required"
+      },
+      {
+        "name": "optional",
+        "label": "Server Selection and Optional",
+        "collapsed": true
+      },
+      {
+        "name": "advanced",
+        "label": "Advanced",
+        "collapsed": true
+      },
+      {
+        "name": "readonly",
+        "label": "Read-Only (Recipe Managed)",
+        "collapsed": true
+      }
+    ],
+    "overview": "Gluetun is a VPN gateway container that connects to your VPN provider and can later be reused by other apps that need to run through that VPN tunnel.",
+    "what_happens": [
+      "A Gluetun container will be created",
+      "It will run with NET_ADMIN and access to /dev/net/tun",
+      "Its persistent state and server data will be saved in the folder you choose",
+      "You can choose your VPN provider, connection type, and optional server filters",
+      "You can optionally publish ports now for future apps that share Gluetun's network stack"
+    ],
+    "data_location": "Relative paths are stored inside this app's project folder under the mounted EasyDocker base config path."
+  }
+}

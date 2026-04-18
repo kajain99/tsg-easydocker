@@ -1,0 +1,7 @@
+{"logtail":{"client_time":"2026-04-18T15:20:45.258369608Z","proc_id":2163713807,"proc_seq":105},"text":"control: RegisterReq: got response; nodeKeyExpired=false, machineAuthorized=false; authURL=false\n"}
+{"logtail":{"client_time":"2026-04-18T15:20:45.259184802Z","proc_id":2163713807,"proc_seq":106},"v":1,"text":"control: TryLogin: invalid key: unable to validate API key\n"}
+{"logtail":{"client_time":"2026-04-18T15:20:45.259583602Z","proc_id":2163713807,"proc_seq":107},"v":1,"text":"control: sendStatus: authRoutine-report: loggedIn=false inMapPoll=false\n"}
+{"logtail":{"client_time":"2026-04-18T15:20:45.259893994Z","proc_id":2163713807,"proc_seq":108},"v":1,"text":"control: authRoutine: backoff: 8 msec\n"}
+{"logtail":{"client_time":"2026-04-18T15:20:45.260362036Z","proc_id":2163713807,"proc_seq":109},"text":"health(warnable=login-state): error: You are logged out. The last login error was: invalid key: unable to validate API key\n"}
+{"logtail":{"client_time":"2026-04-18T15:20:45.260888022Z","proc_id":2163713807,"proc_seq":110},"text":"Received error: invalid key: unable to validate API key\n"}
+{"logtail":{"client_time":"2026-04-18T15:20:45.264960272Z","proc_id":2163713807,"proc_seq":111},"text":"tailscaled got signal terminated; shutting down\n"}

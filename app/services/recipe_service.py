@@ -1,15 +1,11 @@
 import json
-import re
 
 import bleach
 
 from app_config import RECIPES_PATH, SAFE_RECIPE_NAME_RE
 from services.docker_service import get_available_network_options
 from services.host_path_service import build_project_host_path
-from services.yaml_service import RESERVED_RECIPE_KEYS
-
-
-PLACEHOLDER_RE = re.compile(r"\$\{([A-Z0-9_]+)\}")
+from services.yaml_service import PLACEHOLDER_RE, RESERVED_RECIPE_KEYS
 ALLOWED_HELP_TAGS = ["a", "br", "code", "em", "strong", "ul", "ol", "li", "p"]
 ALLOWED_HELP_ATTRIBUTES = {
     "a": ["href", "target", "rel"],
@@ -196,7 +192,7 @@ def build_field_display_value(field, form_defaults=None):
     return field_value
 
 
-def get_resolved_host_path(field, field_value, project_name):
+def get_resolved_host_path(field_value, project_name):
     if not project_name or not isinstance(field_value, str):
         return None
 
@@ -215,17 +211,14 @@ def build_recipe_field_sections(recipe, form_defaults=None, project_name=None):
         if field_copy.get("options_source") == "docker_networks":
             field_copy["options"] = get_available_network_options()
         field_value = build_field_display_value(field_copy, form_defaults)
+        field_copy["current_value"] = field_value
         field_copy["project_host_path"] = project_host_path
         field_copy["show_resolved_host_path"] = (
             field_copy.get("editable", True)
             and field_copy.get("input_type") in {"text", "textarea"}
             and bool(project_host_path)
         )
-        field_copy["resolved_host_path"] = get_resolved_host_path(
-            field_copy,
-            field_value,
-            project_name,
-        )
+        field_copy["resolved_host_path"] = get_resolved_host_path(field_value, project_name)
         section_name = field["section"]
         fields_by_section.setdefault(section_name, []).append(field_copy)
 

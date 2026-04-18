@@ -2,7 +2,6 @@ import json
 import shutil
 
 import requests
-import yaml
 from flask import Response, jsonify, redirect, render_template, request, url_for
 
 from app_config import BASE_CONFIG, GITHUB_BASE, RECIPES_PATH
@@ -39,15 +38,16 @@ from services.recipe_service import (
     load_recipes,
     save_recipe_snapshot,
 )
-from services.yaml_service import build_app_links, generate_compose
+from services.yaml_service import build_app_links, dump_compose_yaml, generate_compose
 
 
 REVIEW_ACTIONS = {"review_deploy", "review_pull_deploy"}
 DEPLOY_ACTIONS = {"deploy", "pull_deploy"}
+ALL_SUBMISSION_ACTIONS = REVIEW_ACTIONS | DEPLOY_ACTIONS
 
 
 def resolve_submission_action(action):
-    if action in REVIEW_ACTIONS | DEPLOY_ACTIONS:
+    if action in ALL_SUBMISSION_ACTIONS:
         return action
     return "review_deploy"
 
@@ -77,7 +77,7 @@ def build_recipe_form_context(recipe, form_defaults=None, port_conflicts=None, e
 
 
 def maybe_render_duplicate_warning(recipe, action, confirm_duplicate, container_name_override, form_data):
-    if action not in REVIEW_ACTIONS | DEPLOY_ACTIONS:
+    if action not in ALL_SUBMISSION_ACTIONS:
         return None, False
 
     if confirm_duplicate:
@@ -104,7 +104,7 @@ def maybe_render_duplicate_warning(recipe, action, confirm_duplicate, container_
 
 def resolve_container_name(recipe_name, action, container_name_override, has_duplicates):
     base_container_name = container_name_override or build_container_name(recipe_name)
-    if action not in REVIEW_ACTIONS | DEPLOY_ACTIONS:
+    if action not in ALL_SUBMISSION_ACTIONS:
         return base_container_name
 
     all_project_names = get_all_project_names()
@@ -116,10 +116,10 @@ def resolve_container_name(recipe_name, action, container_name_override, has_dup
 
 def build_deploy_display_context(compose_summary, folder_path, pull_first):
     compose_cmd = get_compose_command()
-    command_steps = []
-    if pull_first:
-        command_steps.append(" ".join(compose_cmd + ["pull"]))
-    command_steps.append(" ".join(compose_cmd + ["up", "-d"]))
+    command_display = " then ".join(
+        [" ".join(compose_cmd + ["pull"])] if pull_first else []
+        + [" ".join(compose_cmd + ["up", "-d"])]
+    )
 
     exposed_ports = []
     if compose_summary:
@@ -128,37 +128,59 @@ def build_deploy_display_context(compose_summary, folder_path, pull_first):
 
     return {
         "compose_cmd": compose_cmd,
-        "command_display": " then ".join(command_steps),
+        "command_display": command_display,
         "folder_display": str(folder_path),
         "services_count": compose_summary.get("service_count", 0) if compose_summary else 0,
         "ports_display": ", ".join(exposed_ports) if exposed_ports else "None",
     }
 
 
-def render_recipe_review_page(recipe, yaml_output, compose_summary, form_items, container_name, pull_first):
+def build_review_step_context(recipe, yaml_output, compose_summary, form_items, container_name, pull_first):
     display_context = build_deploy_display_context(compose_summary, BASE_CONFIG / container_name, pull_first)
+    form_items = list(form_items)
     form_defaults = dict(form_items)
-    return render_template(
-        "review_deploy.html",
-        recipe=recipe,
-        compose_yaml=yaml_output,
-        command_display=display_context["command_display"],
-        folder_display=display_context["folder_display"],
-        services_count=display_context["services_count"],
-        ports_display=display_context["ports_display"],
-        final_action="pull_deploy" if pull_first else "deploy",
-        form_items=form_items,
-        form_defaults=form_defaults,
-        container_name=container_name,
+    return {
+        "compose_yaml": yaml_output,
+        "command_display": display_context["command_display"],
+        "folder_display": display_context["folder_display"],
+        "services_count": display_context["services_count"],
+        "ports_display": display_context["ports_display"],
+        "final_action": "pull_deploy" if pull_first else "deploy",
+        "form_items": form_items,
+        "form_defaults": form_defaults,
+        "container_name": container_name,
         **build_recipe_field_sections(
             recipe,
             form_defaults=form_defaults,
             project_name=container_name,
         ),
-    )
+    }
 
 
-def start_recipe_deployment(recipe, yaml_output, compose_summary, app_links, app_folder, container_name, pull_first):
+def build_deploy_step_context(run_id):
+    run_record = get_deployment_run(run_id)
+    if not run_record:
+        return {}
+    return {
+        "run_id": run_id,
+        "deployment_label": run_record["deployment_label"],
+        "deploy_command_display": run_record["command_display"],
+        "deploy_folder_display": run_record["folder_display"],
+        "deploy_services_count": run_record["services_count"],
+        "deploy_ports_display": run_record["ports_display"],
+    }
+
+
+def start_recipe_deployment(
+    recipe,
+    yaml_output,
+    compose_summary,
+    app_links,
+    app_folder,
+    container_name,
+    pull_first,
+    form_items,
+):
     display_context = build_deploy_display_context(compose_summary, app_folder, pull_first)
     result_payloads = build_deployment_result_payloads(yaml_output, app_links)
     run_id = start_deployment_run(
@@ -173,7 +195,25 @@ def start_recipe_deployment(recipe, yaml_output, compose_summary, app_links, app
         failure_result=result_payloads["failure"],
         pull_first=pull_first,
     )
-    return redirect(url_for("deploy_page", run_id=run_id))
+    review_context = build_review_step_context(
+        recipe,
+        yaml_output,
+        compose_summary,
+        form_items,
+        container_name,
+        pull_first,
+    )
+    return render_template(
+        "recipe_v2.html",
+        **build_recipe_form_context(
+            recipe,
+            form_defaults=dict(form_items),
+            existing_config_name=container_name,
+        ),
+        workflow_step="deploy",
+        review_step=review_context,
+        deploy_step=build_deploy_step_context(run_id),
+    )
 
 
 def register_routes(app):
@@ -210,14 +250,7 @@ def register_routes(app):
         recipe = load_recipe_by_name(name)
         if not recipe:
             return f"Recipe {name} not found"
-        return render_template(
-            "recipe_v2.html",
-            recipe=recipe,
-            **build_recipe_field_sections(
-                recipe,
-                project_name=build_container_name(recipe["name"]),
-            )
-        )
+        return render_template("recipe_v2.html", **build_recipe_form_context(recipe))
 
     @app.route("/generate/<name>", methods=["POST"])
     def generate_yaml(name):
@@ -250,8 +283,9 @@ def register_routes(app):
         container_name = resolve_container_name(recipe["name"], action, container_name_override, has_duplicates)
 
         compose = generate_compose(recipe, form_data, container_name)
-        yaml_output = yaml.dump(compose, sort_keys=False)
+        yaml_output = dump_compose_yaml(compose)
         compose_summary = build_compose_summary_from_compose(compose, [])
+        form_items = list(form_data.items())
         host_name = request.host.split(":")[0]
         app_links = build_app_links(recipe, form_data, container_name, host_name)
 
@@ -269,13 +303,22 @@ def register_routes(app):
                 )
 
         if action in REVIEW_ACTIONS:
-            return render_recipe_review_page(
-                recipe,
-                yaml_output,
-                compose_summary,
-                form_data.items(),
-                container_name,
-                pull_first,
+            return render_template(
+                "recipe_v2.html",
+                **build_recipe_form_context(
+                    recipe,
+                    form_defaults=form_data.to_dict(flat=True),
+                    existing_config_name=container_name,
+                ),
+                workflow_step="review",
+                review_step=build_review_step_context(
+                    recipe,
+                    yaml_output,
+                    compose_summary,
+                    form_items,
+                    container_name,
+                    pull_first,
+                ),
             )
 
         app_folder = BASE_CONFIG / container_name
@@ -295,6 +338,7 @@ def register_routes(app):
                 app_folder,
                 container_name,
                 pull_first,
+                form_items,
             )
 
         return redirect("/")

@@ -8,6 +8,7 @@ from app_config import BASE_CONFIG, SAFE_CONTAINER_NAME_RE
 from services.compose_service import (
     build_compose_summary,
     build_unsupported_compose_items,
+    ensure_compose_list,
     get_compose_data,
 )
 
@@ -106,7 +107,7 @@ def get_published_ports_from_compose(compose):
     services = compose.get("services", {})
 
     for service_name, service_data in services.items():
-        for port in service_data.get("ports", []):
+        for port in ensure_compose_list(service_data.get("ports")):
             host_port = None
             container_port = None
 
@@ -236,47 +237,17 @@ def get_running_containers_info():
         return g.running_containers_info
 
     all_containers_info = get_all_containers_info()
-    if all_containers_info or (has_request_context() and hasattr(g, "all_containers_info")):
-        running_containers = [
-            {
-                "name": container["name"],
-                "image": container["image"]
-            }
-            for container in all_containers_info
-            if container["running"]
-        ]
-        if has_request_context():
-            g.running_containers_info = running_containers
-        return running_containers
-
-    try:
-        result = subprocess.run(
-            ["docker", "ps", "--format", "{{.Names}}\t{{.Image}}"],
-            capture_output=True,
-            text=True
-        )
-        if result.returncode == 0:
-            containers = []
-            for line in result.stdout.splitlines():
-                if not line.strip():
-                    continue
-                parts = line.split("\t", 1)
-                name = parts[0].strip()
-                image = parts[1].strip() if len(parts) > 1 else ""
-                containers.append({
-                    "name": name,
-                    "image": image
-                })
-            if has_request_context():
-                g.running_containers_info = containers
-            return containers
-    except Exception:
-        pass
-
+    running_containers = [
+        {
+            "name": container["name"],
+            "image": container["image"]
+        }
+        for container in all_containers_info
+        if container["running"]
+    ]
     if has_request_context():
-        g.running_containers_info = []
-
-    return []
+        g.running_containers_info = running_containers
+    return running_containers
 
 
 def build_container_name(app_name):

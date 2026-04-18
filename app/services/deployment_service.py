@@ -99,7 +99,7 @@ def build_deployment_result_payloads(compose_yaml, app_links):
 
     if app_links:
         action_links = "".join(
-            f'<a href="{html.escape(app_link["url"], quote=True)}" target="_blank" class="btn btn-primary">{html.escape(app_link["label"])}</a>'
+            f'<a href="{html.escape(app_link["url"], quote=True)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">{html.escape(app_link["label"])}</a>'
             for app_link in app_links
         )
         success_actions_html = (
@@ -241,15 +241,27 @@ def stream_deployment_events(run_id):
     condition = run_record["condition"]
 
     while True:
+        pending_logs = []
+        done_payload = None
+        send_keep_alive = False
+
         with condition:
             while sent_index < len(run_record["logs"]):
-                log_line = run_record["logs"][sent_index]
+                pending_logs.append(run_record["logs"][sent_index])
                 sent_index += 1
-                yield "event: log\ndata: " + json.dumps(log_line) + "\n\n"
 
             if run_record["complete"]:
-                yield "event: done\ndata: " + json.dumps(run_record["result"]) + "\n\n"
-                return
+                done_payload = run_record["result"]
+            else:
+                condition.wait(timeout=10)
+                send_keep_alive = True
 
-            condition.wait(timeout=10)
+        for log_line in pending_logs:
+            yield "event: log\ndata: " + json.dumps(log_line) + "\n\n"
+
+        if done_payload is not None:
+            yield "event: done\ndata: " + json.dumps(done_payload) + "\n\n"
+            return
+
+        if send_keep_alive:
             yield ": keep-alive\n\n"

@@ -1,0 +1,91 @@
+<div class="workflow-card stage-review">
+    <div class="workflow-header">
+        <div class="workflow-title-row">
+            <span class="workflow-step-badge">2</span>
+            <div>
+                <div class="summary-section-title mb-0">Review</div>
+                <p class="review-subtitle mt-1">This is the exact Compose file EasyDocker will use for this deployment.</p>
+            </div>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm workflow-toggle" type="button" data-workflow-toggle="review">
+            {% if workflow_step == "review" %}Collapse{% else %}Expand{% endif %}
+        </button>
+    </div>
+    <div id="workflow-step-review" class="collapse{% if workflow_step == 'review' %} show{% endif %}">
+        <div class="workflow-body">
+            <div class="summary-strip">
+                <div>
+                    <div class="summary-item-label">Command</div>
+                    <div class="summary-item-value">{{ review_step.command_display }}</div>
+                </div>
+                <div>
+                    <div class="summary-item-label">Project Folder</div>
+                    <div class="summary-item-value">{{ review_step.folder_display }}</div>
+                </div>
+                <div>
+                    <div class="summary-item-label">Services</div>
+                    <div class="summary-item-value">{{ review_step.services_count }}</div>
+                </div>
+                <div>
+                    <div class="summary-item-label">Published Ports</div>
+                    <div class="summary-item-value">{{ review_step.ports_display }}</div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="summary-section-title mb-0">Generated Compose</div>
+                <a class="details-toggle" data-bs-toggle="collapse" href="#compose-preview" role="button" aria-expanded="true" aria-controls="compose-preview">
+                    Show generated compose
+                </a>
+            </div>
+            <div id="compose-preview" class="collapse show mt-3">
+                <div class="compose-preview-card">
+                    <pre class="compose-preview">{{ review_step.compose_yaml }}</pre>
+                </div>
+            </div>
+
+            {% set resolved_fields = [] %}
+            {% for section in review_step.section_groups %}
+                {% for field in section.fields %}
+                    {% if field.resolved_host_path %}
+                        {% set _ = resolved_fields.append(field) %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% if resolved_fields %}
+            <div class="resolved-paths-card">
+                <div class="summary-section-title mb-3">Resolved Storage Paths</div>
+                {% for field in resolved_fields %}
+                <div class="resolved-path-item">
+                    <div class="resolved-path-label">{{ field.label }}</div>
+                    <div class="resolved-path-value">
+                        <div>Recipe path: <code>{{ review_step.form_defaults.get(field.name, field.default or '') }}</code></div>
+                        <div>Resolved host path: <code>{{ field.resolved_host_path }}</code></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="POST" action="/generate/{{ recipe.name }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% for key, value in review_step.form_items %}
+                {% if key != "csrf_token" and key != "action" %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endif %}
+                {% endfor %}
+                <input type="hidden" name="action" value="{{ review_step.final_action }}">
+                <div class="action-row">
+                    <button class="btn btn-success" type="submit">
+                        {% if review_step.final_action == "pull_deploy" %}
+                        Pull Image &amp; Deploy
+                        {% else %}
+                        Deploy
+                        {% endif %}
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" onclick="openWorkflowStep('form')">Back to Form</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -28,17 +28,76 @@
             color: #7a8291;
             font-size: 12px;
         }
-        .summary-card {
+        .summary-card,
+        .workflow-card {
             background: white;
             border: 1px solid #ddd;
             border-radius: 8px;
             padding: 16px;
             margin-bottom: 18px;
         }
+        .workflow-card.stage-form {
+            border-top: 3px solid #cbd5e1;
+        }
+        .workflow-card.stage-review {
+            border-top: 3px solid #bfdbfe;
+        }
+        .workflow-card.stage-deploy {
+            border-top: 3px solid #bbf7d0;
+        }
+        .workflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 0;
+        }
+        .workflow-toggle {
+            min-width: 110px;
+        }
+        .workflow-title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .workflow-step-badge {
+            font-size: 12px;
+            font-weight: 600;
+            color: #0f172a;
+            background: #e2e8f0;
+            border-radius: 999px;
+            padding: 4px 10px;
+        }
+        .workflow-card.stage-form .workflow-step-badge {
+            background: #e2e8f0;
+            color: #334155;
+        }
+        .workflow-card.stage-review .workflow-step-badge {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .workflow-card.stage-deploy .workflow-step-badge {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        .workflow-body {
+            margin-top: 16px;
+        }
         .top-summary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 12px;
+        }
+        .summary-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            background: #f8fafc;
+            border: 1px solid #e8eaed;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 18px;
         }
         .top-summary-item {
             background: #f8fafc;
@@ -55,10 +114,20 @@
             color: #7a8291;
             margin-bottom: 4px;
         }
+        .summary-item-label {
+            font-size: 12px;
+            color: #7a8291;
+            margin-bottom: 4px;
+        }
         .top-summary-value {
             font-size: 15px;
             font-weight: 600;
             color: #1a1a2e;
+        }
+        .summary-item-value {
+            font-size: 14px;
+            color: #1f2937;
+            word-break: break-word;
         }
         .summary-section-title {
             font-size: 16px;
@@ -156,6 +225,53 @@
             background: #fffdf5;
             border-color: #f5deb3;
         }
+        .details-toggle {
+            font-size: 14px;
+            font-weight: 600;
+            color: #0d6efd;
+            text-decoration: none;
+        }
+        .details-toggle:hover { color: #0a4dbf; }
+        .compose-preview-card,
+        .resolved-paths-card {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 14px;
+        }
+        .resolved-paths-card {
+            margin-top: 18px;
+        }
+        .resolved-path-item + .resolved-path-item {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .resolved-path-label {
+            font-size: 13px;
+            color: #5f6b7a;
+            margin-bottom: 4px;
+        }
+        .resolved-path-value {
+            font-size: 13px;
+            color: #1f2937;
+            word-break: break-word;
+        }
+        .compose-preview {
+            margin: 0;
+            font-family: Consolas, monospace;
+            font-size: 12px;
+            color: #5f6b7a;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .action-row,
+        .result-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+        }
         .top-bar {
             display: flex;
             justify-content: flex-end;
@@ -175,6 +291,96 @@
             border-color: #dc2626;
             box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.12);
         }
+        .review-subtitle,
+        .deploy-subtitle {
+            margin: 0;
+            color: #5f6b7a;
+            font-size: 14px;
+        }
+        .deploy-hero {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        .deploy-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin: 0 0 6px 0;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            background: #eff6ff;
+            color: #1d4ed8;
+            white-space: nowrap;
+        }
+        .status-badge.pending::after {
+            content: "...";
+            display: inline-block;
+            width: 1.25em;
+            overflow: hidden;
+            vertical-align: bottom;
+            animation: deployDots 1.2s steps(4, end) infinite;
+        }
+        .status-badge.success {
+            background: #ecfdf3;
+            color: #15803d;
+        }
+        .status-badge.failure {
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+        @keyframes deployDots {
+            0% { width: 0; }
+            100% { width: 1.25em; }
+        }
+        .result-panel {
+            display: none;
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid #e8eaed;
+        }
+        .result-panel.visible { display: block; }
+        .result-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .result-panel.success .result-title { color: #15803d; }
+        .result-panel.failure .result-title { color: #b91c1c; }
+        .summary {
+            font-size: 14px;
+            color: #5f6b7a;
+        }
+        .deploy-log-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 12px;
+        }
+        .deploy-log {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: 16px;
+            min-height: 320px;
+            max-height: 520px;
+            overflow-y: auto;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+        .log-line { margin-bottom: 2px; }
+        .log-line.status { color: #93c5fd; }
+        .log-line.stderr { color: #fca5a5; }
     </style>
 </head>
 <body class="bg-light">
@@ -255,42 +461,63 @@
 
     {% endif %}
 
-    <form method="POST" action="/generate/{{ recipe.name }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        {% if existing_config_name %}
-        <input type="hidden" name="container_name_override" value="{{ existing_config_name }}">
-        {% endif %}
-
-        {% for section in section_groups %}
-        {% include "partials/recipe_section.html" %}
-        {% endfor %}
-
-        {% if redeploy_mode %}
-        <div class="action-grid">
-            <div class="action-card">
-                <div class="action-card-title">Review YAML &amp; Redeploy</div>
-                <p class="action-card-text">Check the generated Compose file before redeploying with your current image version.</p>
-                <button class="btn btn-success w-100" name="action" value="review_deploy">
-                    Review YAML &amp; Redeploy
-                </button>
+    <div class="workflow-card stage-form">
+        <div class="workflow-header">
+            <div class="workflow-title-row">
+                <span class="workflow-step-badge">1</span>
+                <div class="summary-section-title mb-0">Configuration</div>
             </div>
-            <div class="action-card update">
-                <div class="action-card-title">Review YAML, Update Image &amp; Redeploy</div>
-                <p class="action-card-text">Check the generated Compose file, then pull a newer image before redeploying.</p>
-                <button class="btn btn-warning w-100" name="action" value="review_pull_deploy">
-                    Review YAML, Update Image &amp; Redeploy
-                </button>
-                <div class="upgrade-note mb-0">
-                    Use this only when you want the latest image. Newer versions may need different settings.
-                </div>
+            <button class="btn btn-outline-secondary btn-sm workflow-toggle" type="button" data-workflow-toggle="form">Collapse</button>
+        </div>
+        <div id="workflow-step-form" class="collapse{% if workflow_step == 'form' %} show{% endif %}">
+            <div class="workflow-body">
+                <form method="POST" action="/generate/{{ recipe.name }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {% if existing_config_name %}
+                    <input type="hidden" name="container_name_override" value="{{ existing_config_name }}">
+                    {% endif %}
+
+                    {% for section in section_groups %}
+                    {% include "partials/recipe_section.html" %}
+                    {% endfor %}
+
+                    {% if redeploy_mode %}
+                    <div class="action-grid">
+                        <div class="action-card">
+                            <div class="action-card-title">Review YAML &amp; Redeploy</div>
+                            <p class="action-card-text">Check the generated Compose file before redeploying with your current image version.</p>
+                            <button class="btn btn-success w-100" name="action" value="review_deploy">
+                                Review YAML &amp; Redeploy
+                            </button>
+                        </div>
+                        <div class="action-card update">
+                            <div class="action-card-title">Review YAML, Update Image &amp; Redeploy</div>
+                            <p class="action-card-text">Check the generated Compose file, then pull a newer image before redeploying.</p>
+                            <button class="btn btn-warning w-100" name="action" value="review_pull_deploy">
+                                Review YAML, Update Image &amp; Redeploy
+                            </button>
+                            <div class="upgrade-note mb-0">
+                                Use this only when you want the latest image. Newer versions may need different settings.
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <button class="btn btn-success w-100" name="action" value="review_deploy">
+                        Review YAML &amp; Deploy
+                    </button>
+                    {% endif %}
+                </form>
             </div>
         </div>
-        {% else %}
-        <button class="btn btn-success w-100" name="action" value="review_deploy">
-            Review YAML &amp; Deploy
-        </button>
-        {% endif %}
-    </form>
+    </div>
+
+    {% if review_step %}
+    {% include "partials/workflow_review_step.html" %}
+    {% endif %}
+
+    {% if deploy_step %}
+    {% include "partials/workflow_deploy_step.html" %}
+    {% endif %}
 
     <div class="app-footer">
         <div class="app-footer-links">
@@ -308,13 +535,12 @@
 
 <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script>
-    window.addEventListener("pageshow", (event) => {
-        const nav = performance.getEntriesByType("navigation")[0];
-        if (event.persisted || (nav && nav.type === "back_forward")) {
-            window.location.reload();
-        }
-    });
-
+    const initialWorkflowStep = {{ workflow_step|default("form")|tojson }};
+    const workflowStepIds = {
+        form: "workflow-step-form",
+        review: "workflow-step-review",
+        deploy: "workflow-step-deploy"
+    };
     const fieldHelp = {
         {% for field in recipe.fields %}
         "{{ field.name }}": {{ (field.help or "No help available") | tojson }}{% if not loop.last %},{% endif %}
@@ -380,7 +606,118 @@
         resolvedWrapper.classList.remove("d-none");
     }
 
+    function parseConditionMap(rawValue) {
+        if (!rawValue) return null;
+        try {
+            return JSON.parse(rawValue);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function getFieldCurrentValue(fieldName) {
+        const field = recipeForm?.querySelector(`[name="${CSS.escape(fieldName)}"]`);
+        if (!field) return "";
+        return field.value ?? "";
+    }
+
+    function conditionsMatch(conditionMap) {
+        if (!conditionMap) return true;
+
+        return Object.entries(conditionMap).every(([fieldName, allowedValues]) => {
+            const currentValue = getFieldCurrentValue(fieldName);
+            return (allowedValues || []).includes(currentValue);
+        });
+    }
+
+    function setFieldVisibility(wrapper, shouldShow) {
+        wrapper.classList.toggle("d-none", !shouldShow);
+
+        const controls = wrapper.querySelectorAll("input[name], textarea[name], select[name]");
+        controls.forEach((control) => {
+            if (control.type === "hidden") {
+                return;
+            }
+            control.disabled = !shouldShow;
+            if (!shouldShow) {
+                control.classList.remove("is-invalid");
+            }
+        });
+
+        if (!shouldShow) {
+            const errorEl = wrapper.querySelector(".field-error");
+            if (errorEl) {
+                errorEl.style.display = "none";
+            }
+        }
+    }
+
+    function applyConditionalVisibility() {
+        if (!recipeForm) return;
+
+        const conditionalFields = recipeForm.querySelectorAll("[data-visible-when], [data-hidden-when]");
+        conditionalFields.forEach((wrapper) => {
+            const visibleWhen = parseConditionMap(wrapper.dataset.visibleWhen);
+            const hiddenWhen = parseConditionMap(wrapper.dataset.hiddenWhen);
+
+            let shouldShow = true;
+            if (visibleWhen) {
+                shouldShow = conditionsMatch(visibleWhen);
+            }
+            if (hiddenWhen && conditionsMatch(hiddenWhen)) {
+                shouldShow = false;
+            }
+
+            setFieldVisibility(wrapper, shouldShow);
+        });
+    }
+
     const recipeForm = document.querySelector('form[action^="/generate/"]');
+
+    function openWorkflowStep(stepName) {
+        Object.entries(workflowStepIds).forEach(([name, id]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const instance = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
+            if (name === stepName) {
+                instance.show();
+            } else {
+                instance.hide();
+            }
+        });
+        updateWorkflowToggleLabels();
+
+        const target = document.getElementById(workflowStepIds[stepName]);
+        if (target) {
+            window.setTimeout(() => {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 180);
+        }
+    }
+
+    function isWorkflowStepOpen(stepName) {
+        const el = document.getElementById(workflowStepIds[stepName]);
+        return !!el && el.classList.contains("show");
+    }
+
+    function updateWorkflowToggleLabels() {
+        document.querySelectorAll("[data-workflow-toggle]").forEach((button) => {
+            const stepName = button.dataset.workflowToggle;
+            button.textContent = isWorkflowStepOpen(stepName) ? "Collapse" : "Expand";
+        });
+    }
+
+    function toggleWorkflowStep(stepName) {
+        if (isWorkflowStepOpen(stepName)) {
+            const el = document.getElementById(workflowStepIds[stepName]);
+            if (!el) return;
+            const instance = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
+            instance.hide();
+            window.setTimeout(updateWorkflowToggleLabels, 50);
+            return;
+        }
+        openWorkflowStep(stepName);
+    }
 
     function showFieldValidation(input) {
         if (!input) return;
@@ -398,16 +735,21 @@
                 const collapseInstance = bootstrap.Collapse.getOrCreateInstance(collapsedSection, { toggle: false });
                 collapseInstance.show();
             }
+            openWorkflowStep("form");
         }
     }
 
     if (recipeForm) {
         const fieldsNeedingValidation = recipeForm.querySelectorAll("input[required], textarea[required], select[required]");
         const resolvedPathInputs = recipeForm.querySelectorAll("[data-project-host-path]");
+        const statefulFields = recipeForm.querySelectorAll("input[name], textarea[name], select[name]");
+
+        applyConditionalVisibility();
 
         fieldsNeedingValidation.forEach((input) => {
             input.addEventListener("input", () => showFieldValidation(input));
             input.addEventListener("change", () => showFieldValidation(input));
+            showFieldValidation(input);
         });
 
         resolvedPathInputs.forEach((input) => {
@@ -415,6 +757,20 @@
             input.addEventListener("input", () => updateResolvedPath(input));
             input.addEventListener("change", () => updateResolvedPath(input));
         });
+
+        statefulFields.forEach((field) => {
+            if (field.name === "csrf_token" || field.name === "action") {
+                return;
+            }
+            field.addEventListener("input", () => {
+                applyConditionalVisibility();
+            });
+            field.addEventListener("change", () => {
+                applyConditionalVisibility();
+            });
+        });
+
+        applyConditionalVisibility();
 
         recipeForm.addEventListener("submit", (event) => {
             let firstInvalid = null;
@@ -430,9 +786,96 @@
                 event.preventDefault();
                 firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
                 firstInvalid.focus();
+                return;
             }
         });
     }
+
+    document.querySelectorAll("[data-workflow-toggle]").forEach((button) => {
+        button.addEventListener("click", () => toggleWorkflowStep(button.dataset.workflowToggle));
+    });
+    openWorkflowStep(initialWorkflowStep || "form");
+    updateWorkflowToggleLabels();
+
+    {% if deploy_step %}
+    const logEl = document.getElementById("deploy-log");
+    const statusEl = document.getElementById("deploy-status");
+    const resultEl = document.getElementById("deploy-result");
+    const stream = new EventSource("/deploy-stream/{{ deploy_step.run_id }}");
+    let deploymentComplete = false;
+    let disconnectTimer = null;
+
+    function updateDeployStatus(payload) {
+        resultEl.className = `result-panel ${payload.kind} visible`;
+        resultEl.innerHTML =
+            `<div class="result-title">${payload.title}</div>` +
+            `<p class="summary mb-0">${payload.message}</p>` +
+            (payload.actions_html || "") +
+            (payload.details_html || "");
+
+        statusEl.classList.remove("pending");
+        if (payload.kind === "success") {
+            statusEl.textContent = "Success";
+            statusEl.classList.add("success");
+        } else {
+            statusEl.textContent = "Failed";
+            statusEl.classList.add("failure");
+        }
+    }
+
+    function appendLogLine(line) {
+        const lineEl = document.createElement("div");
+        lineEl.className = "log-line";
+        if (line.startsWith("Exit code:")) {
+            lineEl.classList.add(line.includes("0") ? "status" : "stderr");
+        } else if (line.includes("failed") || line.includes("error") || line.includes("Error")) {
+            lineEl.classList.add("stderr");
+        } else if (line.includes("Starting") || line.includes("Pulling") || line.includes("successfully")) {
+            lineEl.classList.add("status");
+        }
+        lineEl.textContent = line;
+        logEl.appendChild(lineEl);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    stream.addEventListener("log", (event) => {
+        if (disconnectTimer) {
+            window.clearTimeout(disconnectTimer);
+            disconnectTimer = null;
+        }
+        appendLogLine(JSON.parse(event.data));
+    });
+
+    stream.addEventListener("done", (event) => {
+        deploymentComplete = true;
+        if (disconnectTimer) {
+            window.clearTimeout(disconnectTimer);
+            disconnectTimer = null;
+        }
+        updateDeployStatus(JSON.parse(event.data));
+        logEl.scrollTop = logEl.scrollHeight;
+        stream.close();
+    });
+
+    stream.onerror = () => {
+        if (deploymentComplete || disconnectTimer) {
+            return;
+        }
+        disconnectTimer = window.setTimeout(() => {
+            if (deploymentComplete) {
+                return;
+            }
+            stream.close();
+            updateDeployStatus({
+                kind: "failure",
+                title: "Deployment stream disconnected",
+                message: "EasyDocker lost the live deployment stream for more than a few seconds. Check the current app state and try again if needed.",
+                actions_html: '<div class="result-actions"><a href="/" class="btn btn-primary">Back to Home</a></div>',
+                details_html: ""
+            });
+        }, 5000);
+    };
+    {% endif %}
 </script>
 </body>
 </html>

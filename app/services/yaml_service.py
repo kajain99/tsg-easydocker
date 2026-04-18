@@ -7,6 +7,7 @@ from services.host_path_service import build_project_host_path
 
 PLACEHOLDER_RE = re.compile(r"\$\{([A-Z0-9_]+)\}")
 RESERVED_RECIPE_KEYS = {"name", "version", "description", "fields", "ui", "app_links"}
+EXTRA_ENVIRONMENT_KEY = "x-easydocker-extra-environment"
 
 
 def coerce_field_value(field, value):
@@ -189,6 +190,26 @@ def resolve_relative_bind_mounts(compose, project_name):
     return compose
 
 
+def merge_extra_environment(compose):
+    services = compose.get("services", {})
+    for service_name, service_data in services.items():
+        if not isinstance(service_data, dict):
+            continue
+
+        extra_environment = service_data.pop(EXTRA_ENVIRONMENT_KEY, None)
+        if not isinstance(extra_environment, dict) or not extra_environment:
+            continue
+
+        environment = service_data.get("environment")
+        if not isinstance(environment, dict):
+            environment = {}
+
+        environment.update(extra_environment)
+        service_data["environment"] = environment
+
+    return compose
+
+
 def generate_compose(recipe, form_data, project_name):
     field_values = build_field_values(recipe, form_data, project_name)
     compose = {}
@@ -203,6 +224,7 @@ def generate_compose(recipe, form_data, project_name):
             continue
         compose[top_level_key] = cleaned_value
 
+    compose = merge_extra_environment(compose)
     return resolve_relative_bind_mounts(compose, project_name)
 
 
@@ -226,3 +248,7 @@ def build_app_links(recipe, form_data, project_name, host):
         })
 
     return links
+
+
+def dump_compose_yaml(compose):
+    return yaml.dump(compose, sort_keys=False)

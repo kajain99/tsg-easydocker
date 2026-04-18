@@ -2,27 +2,15 @@ import re
 
 import yaml
 
-from services.yaml_service import RESERVED_RECIPE_KEYS, build_app_links
+from services.yaml_service import PLACEHOLDER_RE, RESERVED_RECIPE_KEYS, build_app_links
 
 
-PLACEHOLDER_RE = re.compile(r"\$\{([A-Z0-9_]+)\}")
-
-
-def get_port_from_compose(compose_file):
-    try:
-        with open(compose_file) as handle:
-            data = yaml.safe_load(handle)
-        services = data.get("services", {})
-        for service_data in services.values():
-            ports = service_data.get("ports", [])
-            for port_value in ports:
-                if isinstance(port_value, str):
-                    return port_value.split(":")[0]
-                if isinstance(port_value, dict):
-                    return str(port_value.get("published", ""))
-    except Exception:
-        pass
-    return None
+def ensure_compose_list(value):
+    if value in (None, ""):
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
 
 
 def get_compose_data(compose_file):
@@ -266,7 +254,7 @@ def build_compose_summary_from_compose(compose_data, project_containers=None):
     service_summaries = []
     for service_name, service_data in services.items():
         ports = []
-        for port in service_data.get("ports", []):
+        for port in ensure_compose_list(service_data.get("ports")):
             if isinstance(port, str):
                 ports.append(port)
             elif isinstance(port, dict):
@@ -275,7 +263,11 @@ def build_compose_summary_from_compose(compose_data, project_containers=None):
                 if published and target:
                     ports.append(f"{published}:{target}")
 
-        volumes = [volume for volume in service_data.get("volumes", []) if isinstance(volume, str)]
+        volumes = [
+            volume
+            for volume in ensure_compose_list(service_data.get("volumes"))
+            if isinstance(volume, str)
+        ]
         matching_container = containers_by_service.get(service_name)
         service_summaries.append({
             "name": service_name,
@@ -288,8 +280,8 @@ def build_compose_summary_from_compose(compose_data, project_containers=None):
             "volumes": volumes,
             "restart": service_data.get("restart"),
             "network_mode": service_data.get("network_mode"),
-            "cap_add": service_data.get("cap_add", []),
-            "devices": service_data.get("devices", []),
+            "cap_add": ensure_compose_list(service_data.get("cap_add")),
+            "devices": ensure_compose_list(service_data.get("devices")),
             "environment": get_service_environment_summary(service_data)
         })
 
@@ -306,3 +298,14 @@ def build_compose_summary(compose_file, container_state=None):
         compose_data,
         container_state or []
     )
+
+
+def get_primary_port_from_summary(compose_summary):
+    for service in compose_summary.get("services", []):
+        ports = service.get("ports", [])
+        if not ports:
+            continue
+        first_port = ports[0]
+        if isinstance(first_port, str):
+            return first_port.split(":")[0]
+    return None

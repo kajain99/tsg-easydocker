@@ -1,9 +1,10 @@
-{% set field_value = form_defaults.get(field.name, field.default or '') if form_defaults else field.default or '' %}
-{% if field.input_type == "select" and field_value == '' and field.options %}
-{% set field_value = field.options[0].value %}
-{% endif %}
+{% set field_value = field.current_value if field.current_value is defined else (form_defaults.get(field.name, field.default or '') if form_defaults else field.default or '') %}
 {% set is_editable = field.get("editable", True) %}
-<div class="mb-3">
+<div
+    class="mb-3"
+    {% if field.visible_when %}data-visible-when='{{ field.visible_when | tojson }}'{% endif %}
+    {% if field.hidden_when %}data-hidden-when='{{ field.hidden_when | tojson }}'{% endif %}
+>
     {% if not is_editable %}
     <input type="hidden" name="{{ field.name }}" value="{{ field_value }}">
     <div class="readonly-item"><span class="readonly-label">{{ field.label }}:</span>{% if field.input_type == "select" %}{% for option in field.options or [] %}{% if option.value == field_value %}{{ option.label }}{% endif %}{% endfor %}{% else %}{{ field_value if field_value not in (None, '') else 'Not set' }}{% endif %}</div>

@@ -5,24 +5,34 @@ from flask import request
 from app_config import BASE_CONFIG
 from services.compose_service import (
     build_app_links_from_compose,
+    build_compose_summary,
+    get_primary_port_from_summary,
+    build_project_status,
     get_compose_data,
-    get_port_from_compose,
 )
 from services.docker_service import get_all_containers_info
-from services.recipe_service import get_recipe_from_compose, load_saved_recipe_snapshot
+from services.recipe_service import get_recipe_from_compose
 
 
 def get_app_links_for_config(project_name, compose_file):
-    recipe = load_saved_recipe_snapshot(compose_file.parent)
-    if not recipe:
-        recipe, compose_data = get_recipe_from_compose(compose_file, get_compose_data)
-    else:
-        compose_data = get_compose_data(compose_file)
-
+    recipe, compose_data = get_recipe_from_compose(compose_file, get_compose_data)
     if not recipe:
         return []
 
     return build_app_links_from_compose(recipe, compose_data, project_name, request.host.split(":")[0])
+
+
+def get_project_port(compose_file):
+    compose_summary = build_compose_summary(compose_file)
+    return get_primary_port_from_summary(compose_summary)
+
+
+def format_member(container):
+    return {
+        "name": container["service"] or container["name"],
+        "state": container["state"],
+        "running": container["running"]
+    }
 
 
 def build_installed_apps():
@@ -41,8 +51,7 @@ def build_installed_apps():
                 compose_file = full_path / "docker-compose.yml"
                 if compose_file.exists():
                     managed_projects[folder] = {
-                        "name": folder,
-                        "port": get_port_from_compose(compose_file),
+                        "port": get_project_port(compose_file),
                         "app_links": get_app_links_for_config(folder, compose_file),
                         "reviewable": True
                     }
@@ -57,11 +66,7 @@ def build_installed_apps():
                 "source": "external_container",
                 "port": None,
                 "reviewable": False,
-                "members": [{
-                    "name": container["service"] or container["name"],
-                    "state": container["state"],
-                    "running": container["running"]
-                }]
+                "members": [format_member(container)]
             })
 
     for project_name, project_meta in managed_projects.items():
@@ -70,25 +75,14 @@ def build_installed_apps():
             key=lambda item: item["service"] or item["name"]
         )
         if members:
-            member_states = [member["state"] for member in members]
-            project_state = "running" if all(member["running"] for member in members) else "mixed"
-            if not any(member["running"] for member in members):
-                project_state = member_states[0] if len(set(member_states)) == 1 else "stopped"
             all_projects.append({
                 "name": project_name,
                 "source": "easydocker",
                 "port": project_meta["port"],
                 "app_links": project_meta["app_links"],
                 "reviewable": True,
-                "state": project_state,
-                "members": [
-                    {
-                        "name": member["service"] or member["name"],
-                        "state": member["state"],
-                        "running": member["running"]
-                    }
-                    for member in members
-                ]
+                "state": build_project_status(members),
+                "members": [format_member(member) for member in members]
             })
         else:
             orphan_configs.append({
@@ -101,24 +95,13 @@ def build_installed_apps():
     for project_name, members in containers_by_project.items():
         if project_name not in managed_projects:
             sorted_members = sorted(members, key=lambda item: item["service"] or item["name"])
-            member_states = [member["state"] for member in sorted_members]
-            project_state = "running" if all(member["running"] for member in sorted_members) else "mixed"
-            if not any(member["running"] for member in sorted_members):
-                project_state = member_states[0] if len(set(member_states)) == 1 else "stopped"
             all_projects.append({
                 "name": project_name,
                 "source": "external_project",
                 "port": None,
                 "reviewable": False,
-                "state": project_state,
-                "members": [
-                    {
-                        "name": member["service"] or member["name"],
-                        "state": member["state"],
-                        "running": member["running"]
-                    }
-                    for member in sorted_members
-                ]
+                "state": build_project_status(sorted_members),
+                "members": [format_member(member) for member in sorted_members]
             })
 
     all_projects.sort(key=lambda item: item["name"])

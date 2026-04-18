@@ -1,0 +1,46 @@
+<div class="workflow-card stage-deploy">
+    <div class="workflow-header">
+        <div class="workflow-title-row">
+            <span class="workflow-step-badge">3</span>
+            <div class="summary-section-title mb-0">Deployment</div>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm workflow-toggle" type="button" data-workflow-toggle="deploy">Collapse</button>
+    </div>
+    <div id="workflow-step-deploy" class="collapse{% if workflow_step == 'deploy' %} show{% endif %}">
+        <div class="workflow-body">
+            <div class="deploy-hero">
+                <div>
+                    <div class="deploy-title">Deploying {{ deploy_step.deployment_label }}</div>
+                    <p class="deploy-subtitle">Watching the live Docker output while EasyDocker applies this configuration.</p>
+                </div>
+                <div id="deploy-status" class="status-badge pending">Deploying</div>
+            </div>
+
+            <div class="summary-strip">
+                <div>
+                    <div class="summary-item-label">Command</div>
+                    <div class="summary-item-value">{{ deploy_step.deploy_command_display }}</div>
+                </div>
+                <div>
+                    <div class="summary-item-label">Project Folder</div>
+                    <div class="summary-item-value">{{ deploy_step.deploy_folder_display }}</div>
+                </div>
+                <div>
+                    <div class="summary-item-label">Services</div>
+                    <div class="summary-item-value">{{ deploy_step.deploy_services_count }}</div>
+                </div>
+                <div>
+                    <div class="summary-item-label">Published Ports</div>
+                    <div class="summary-item-value">{{ deploy_step.deploy_ports_display }}</div>
+                </div>
+            </div>
+
+            <div id="deploy-result" class="result-panel"></div>
+
+            <div class="workflow-card mb-0 mt-3">
+                <div class="deploy-log-title">Live Log</div>
+                <div id="deploy-log" class="deploy-log"></div>
+            </div>
+        </div>
+    </div>
+</div>

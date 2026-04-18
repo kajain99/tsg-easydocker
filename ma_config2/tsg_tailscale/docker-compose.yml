@@ -1,0 +1,19 @@
+services:
+  tailscale:
+    container_name: tsg_tailscale
+    image: tailscale/tailscale:latest
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      TS_AUTHKEY: your-strong-password
+      TS_ACCEPT_DNS: 'true'
+      TS_AUTH_ONCE: 'false'
+      TS_USERSPACE: 'false'
+      TS_STATE_DIR: /var/lib/tailscale
+    volumes:
+    - C:\tsg-easydocker\tsg-easydocker\ma_config2/tsg_tailscale/tailscale_data:/var/lib/tailscale
+    cap_add:
+    - NET_ADMIN
+    - NET_RAW
+    devices:
+    - /dev/net/tun:/dev/net/tun
