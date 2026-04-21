@@ -4,7 +4,7 @@ from urllib.parse import unquote, urlsplit
 
 from flask import abort, redirect, render_template, request, session, url_for
 
-from app_config import EASYDOCKER_PASSWORD, EASYDOCKER_USERNAME
+from app_config import EASYDOCKER_PASSWORD, EASYDOCKER_USERNAME, EASYDOCKER_VERSION
 
 
 def configure_app(app):
@@ -46,7 +46,10 @@ def normalize_next_url(next_url):
 def register_security(app):
     @app.context_processor
     def inject_csrf_token():
-        return {"csrf_token": get_csrf_token}
+        return {
+            "csrf_token": get_csrf_token,
+            "easydocker_version": EASYDOCKER_VERSION,
+        }
 
     @app.before_request
     def protect_state_changing_requests():

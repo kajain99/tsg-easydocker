@@ -24,6 +24,7 @@ htmlcov/
 .DS_Store
 Thumbs.db
 desktop.ini
+ma_config*/
 
 base_config/*/
 !base_config/recipes/

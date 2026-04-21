@@ -1,3 +1,4 @@
+import copy
 import re
 
 import yaml
@@ -21,27 +22,84 @@ def get_compose_data(compose_file):
         return {}
 
 
-def build_placeholder_pattern(template_value):
-    placeholder_names = []
-    pattern_parts = []
+def tokenize_template_string(template_value):
+    tokens = []
     last_end = 0
 
     for match in PLACEHOLDER_RE.finditer(template_value):
         literal_text = template_value[last_end:match.start()]
-        if literal_text.isspace():
-            pattern_parts.append(r"\s*")
-        else:
-            pattern_parts.append(re.escape(literal_text))
-        placeholder_names.append(match.group(1))
-        pattern_parts.append("(.*?)")
+        if literal_text:
+            tokens.append(("literal", literal_text))
+        tokens.append(("placeholder", match.group(1)))
         last_end = match.end()
 
     trailing_literal = template_value[last_end:]
-    if trailing_literal.isspace():
-        pattern_parts.append(r"\s*")
-    else:
-        pattern_parts.append(re.escape(trailing_literal))
-    return re.compile("^" + "".join(pattern_parts) + "$"), placeholder_names
+    if trailing_literal:
+        tokens.append(("literal", trailing_literal))
+
+    return tokens
+
+
+def extract_placeholder_values(template_value, actual_string):
+    tokens = tokenize_template_string(template_value)
+    if not tokens:
+        return None
+
+    def match_from(token_index, string_index):
+        if token_index >= len(tokens):
+            return {} if string_index == len(actual_string) else None
+
+        token_type, token_value = tokens[token_index]
+
+        if token_type == "literal":
+            if token_value.isspace():
+                trimmed_index = string_index
+                while trimmed_index < len(actual_string) and actual_string[trimmed_index].isspace():
+                    trimmed_index += 1
+                return match_from(token_index + 1, trimmed_index)
+
+            if not actual_string.startswith(token_value, string_index):
+                return None
+            return match_from(token_index + 1, string_index + len(token_value))
+
+        next_literal = None
+        for candidate_type, candidate_value in tokens[token_index + 1:]:
+            if candidate_type == "literal":
+                next_literal = candidate_value
+                break
+
+        if next_literal is None:
+            return {token_value: actual_string[string_index:]}
+
+        if next_literal.isspace():
+            for split_index in range(len(actual_string), string_index - 1, -1):
+                remainder = actual_string[split_index:]
+                if remainder.strip():
+                    continue
+                matched = match_from(token_index + 1, split_index)
+                if matched is not None:
+                    matched[token_value] = actual_string[string_index:split_index]
+                    return matched
+            return None
+
+        search_positions = []
+        start = string_index
+        while True:
+            found_index = actual_string.find(next_literal, start)
+            if found_index == -1:
+                break
+            search_positions.append(found_index)
+            start = found_index + 1
+
+        for split_index in reversed(search_positions):
+            matched = match_from(token_index + 1, split_index)
+            if matched is not None:
+                matched[token_value] = actual_string[string_index:split_index]
+                return matched
+
+        return None
+
+    return match_from(0, 0)
 
 
 def extract_values_from_template(template_value, actual_value, extracted_values):
@@ -63,12 +121,11 @@ def extract_values_from_template(template_value, actual_value, extracted_values)
                     extracted_values.setdefault(placeholder_name, actual_string)
             return
 
-        pattern, placeholder_names = build_placeholder_pattern(template_value)
-        matched = pattern.match(actual_string)
-        if not matched:
+        matched_values = extract_placeholder_values(template_value, actual_string)
+        if not matched_values:
             return
 
-        for placeholder_name, extracted_value in zip(placeholder_names, matched.groups()):
+        for placeholder_name, extracted_value in matched_values.items():
             if placeholder_name != "PROJECT_NAME":
                 extracted_values.setdefault(placeholder_name, extracted_value)
         return
@@ -96,6 +153,14 @@ def build_form_defaults_from_compose(recipe, compose_data):
 
     for field in recipe.get("fields", []):
         field_name = field["name"]
+        if field.get("resource_kind") and field.get("service_name"):
+            service_data = compose_data.get("services", {}).get(field["service_name"], {})
+            if field["resource_kind"] == "cpu_limit":
+                field_value = service_data.get("cpus", field.get("default", ""))
+            else:
+                field_value = service_data.get("mem_limit", field.get("default", ""))
+            defaults[field_name] = "" if field_value is None else str(field_value)
+            continue
         defaults[field_name] = extracted_values.get(field_name, field.get("default", ""))
 
     return defaults
@@ -106,22 +171,46 @@ def build_app_links_from_compose(recipe, compose_data, project_name, host):
     return build_app_links(recipe, form_defaults, project_name, host)
 
 
+def build_supported_recipe_compose(recipe):
+    recipe_compose = {
+        key: value
+        for key, value in copy.deepcopy(recipe).items()
+        if key not in RESERVED_RECIPE_KEYS
+    }
+
+    services = recipe_compose.get("services")
+    if not isinstance(services, dict):
+        return recipe_compose
+
+    for field in recipe.get("fields", []):
+        resource_kind = field.get("resource_kind")
+        service_name = field.get("service_name")
+        field_name = field.get("name")
+
+        if resource_kind not in {"cpu_limit", "memory_limit"} or not service_name or not field_name:
+            continue
+        if service_name not in services or not isinstance(services[service_name], dict):
+            continue
+
+        if resource_kind == "cpu_limit":
+            services[service_name]["cpus"] = f"${{{field_name}}}"
+        elif resource_kind == "memory_limit":
+            services[service_name]["mem_limit"] = f"${{{field_name}}}"
+
+    return recipe_compose
+
+
 def build_unsupported_compose_items(recipe, compose_data):
     if not compose_data:
         return []
 
     unsupported_items = []
-    recipe_compose = {
-        key: value
-        for key, value in recipe.items()
-        if key not in RESERVED_RECIPE_KEYS
-    }
+    recipe_compose = build_supported_recipe_compose(recipe)
 
     def template_matches(template_value, actual_value):
         if isinstance(template_value, str):
             if PLACEHOLDER_RE.search(template_value):
-                pattern, _ = build_placeholder_pattern(template_value)
-                return bool(pattern.match(str(actual_value)))
+                return extract_placeholder_values(template_value, str(actual_value)) is not None
             return template_value == actual_value
 
         if isinstance(template_value, dict) and isinstance(actual_value, dict):

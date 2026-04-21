@@ -28,6 +28,23 @@
             color: #7a8291;
             font-size: 12px;
         }
+        .recipe-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .recipe-tag {
+            display: inline-flex;
+            align-items: center;
+            font-size: 11px;
+            color: #475569;
+            background: #f1f5f9;
+            border: 1px solid #dbe4ee;
+            border-radius: 999px;
+            padding: 2px 8px;
+            line-height: 1.4;
+        }
         .summary-card,
         .workflow-card {
             background: white;
@@ -276,6 +293,7 @@
             display: flex;
             justify-content: flex-end;
             align-items: center;
+            gap: 10px;
             margin-bottom: 14px;
         }
         .logout-form { margin: 0; }
@@ -386,16 +404,19 @@
 <body class="bg-light">
 
 <div class="container mt-4">
-    <div class="top-bar">
-        <form method="POST" action="/logout" class="logout-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
-        </form>
-    </div>
+    {% set show_settings_link = true %}
+    {% include "partials/top_bar.html" %}
     <div class="mb-4">
         <a href="/" class="btn btn-link">&larr; Back</a>
         <h2>{{ recipe.name }}</h2>
         <p class="text-muted">{{ recipe.description }}</p>
+        {% if recipe.ui and recipe.ui.tags %}
+        <div class="recipe-tags">
+            {% for tag in recipe.ui.tags %}
+            <span class="recipe-tag">{{ tag }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 
     {% if port_conflicts %}
@@ -519,18 +540,7 @@
     {% include "partials/workflow_deploy_step.html" %}
     {% endif %}
 
-    <div class="app-footer">
-        <div class="app-footer-links">
-            <a href="https://github.com/kajain99/tsg-easydocker" target="_blank" class="app-footer-link">GitHub</a>
-            <span class="app-footer-separator">|</span>
-            <a href="https://hub.docker.com/r/kajain99/easydocker" target="_blank" class="app-footer-link">Docker Hub</a>
-            <span class="app-footer-separator">|</span>
-            <a href="https://ko-fi.com/kajain99" target="_blank" class="app-footer-link">Buy Me a Coffee</a>
-        </div>
-        <div>
-            EasyDocker installs apps. Your NAS Docker app manages them.
-        </div>
-    </div>
+    {% include "partials/app_footer.html" %}
 </div>
 
 <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
@@ -739,11 +749,37 @@
         }
     }
 
+    function detectBrowserTimezone() {
+        try {
+            return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+        } catch (error) {
+            return "";
+        }
+    }
+
+    function applyDetectedTimezone() {
+        if (!recipeForm) return;
+
+        const timezone = detectBrowserTimezone();
+        if (!timezone) return;
+
+        const timezoneFields = recipeForm.querySelectorAll('input[name="TZ"], textarea[name="TZ"]');
+        timezoneFields.forEach((field) => {
+            if ((field.value || "").trim() !== "") {
+                return;
+            }
+            field.value = timezone;
+            updateResolvedPath(field);
+            showFieldValidation(field);
+        });
+    }
+
     if (recipeForm) {
         const fieldsNeedingValidation = recipeForm.querySelectorAll("input[required], textarea[required], select[required]");
         const resolvedPathInputs = recipeForm.querySelectorAll("[data-project-host-path]");
         const statefulFields = recipeForm.querySelectorAll("input[name], textarea[name], select[name]");
 
+        applyDetectedTimezone();
         applyConditionalVisibility();
 
         fieldsNeedingValidation.forEach((input) => {

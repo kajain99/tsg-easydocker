@@ -1,6 +1,7 @@
 import os
 import re
 import subprocess
+from functools import lru_cache
 
 from flask import g, has_request_context
 
@@ -11,8 +12,10 @@ from services.compose_service import (
     ensure_compose_list,
     get_compose_data,
 )
+from services.host_path_service import get_current_container_id
 
 
+@lru_cache(maxsize=1)
 def get_compose_command():
     try:
         result = subprocess.run(
@@ -67,6 +70,104 @@ def get_available_network_options():
     discovered.sort(key=lambda item: item["label"].lower())
     options.extend(discovered)
     return options
+
+
+def _get_current_container_image():
+    if has_request_context() and hasattr(g, "current_container_image"):
+        return g.current_container_image
+
+    container_id = get_current_container_id()
+    if not container_id:
+        return None
+
+    image_name = None
+    try:
+        result = subprocess.run(
+            ["docker", "inspect", container_id, "--format", "{{.Config.Image}}"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            image_name = result.stdout.strip() or None
+    except Exception:
+        image_name = None
+
+    if has_request_context():
+        g.current_container_image = image_name
+
+    return image_name
+
+
+def _docker_host_path_exists(path):
+    helper_image = _get_current_container_image()
+    if not helper_image:
+        return False
+
+    check_command = "test -e /host-check"
+    if path == "/dev/dri":
+        check_command = (
+            "test -d /host-check && "
+            "find /host-check -maxdepth 1 "
+            "\\( -name 'card*' -o -name 'renderD*' \\) | grep -q ."
+        )
+    elif path == "/dev/dvb":
+        check_command = (
+            "test -d /host-check && "
+            "find /host-check -mindepth 1 -maxdepth 2 "
+            "\\( -name 'adapter*' -o -name 'demux*' -o -name 'dvr*' -o -name 'frontend*' -o -name 'net*' \\) "
+            "| grep -q ."
+        )
+
+    try:
+        result = subprocess.run(
+            [
+                "docker", "run", "--rm",
+                "--entrypoint", "sh",
+                "--mount", f"type=bind,src={path},dst=/host-check,readonly",
+                helper_image,
+                "-c", check_command
+            ],
+            capture_output=True,
+            text=True
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def host_path_exists(path):
+    if not path:
+        return False
+
+    if has_request_context():
+        cache = getattr(g, "host_path_exists_cache", None)
+        if cache is None:
+            cache = {}
+            g.host_path_exists_cache = cache
+        if path in cache:
+            return cache[path]
+
+    if path.startswith("/dev/"):
+        exists = _docker_host_path_exists(path)
+    else:
+        exists = os.path.exists(path)
+
+    if has_request_context():
+        g.host_path_exists_cache[path] = exists
+
+    return exists
+
+
+def detect_host_paths(paths):
+    results = {}
+    for path in paths:
+        if not isinstance(path, str):
+            continue
+        normalized_path = path.strip()
+        if not normalized_path or not normalized_path.startswith("/dev/"):
+            continue
+        results[normalized_path] = host_path_exists(normalized_path)
+    return results
 
 
 def is_safe_container_name(name):

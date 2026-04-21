@@ -1,7 +1,9 @@
 {% set field_value = field.current_value if field.current_value is defined else (form_defaults.get(field.name, field.default or '') if form_defaults else field.default or '') %}
 {% set is_editable = field.get("editable", True) %}
+{% set is_disabled = field.get("disabled", False) %}
 <div
     class="mb-3"
+    {% if field.availability_path %}data-availability-path="{{ field.availability_path }}"{% endif %}
     {% if field.visible_when %}data-visible-when='{{ field.visible_when | tojson }}'{% endif %}
     {% if field.hidden_when %}data-hidden-when='{{ field.hidden_when | tojson }}'{% endif %}
 >
@@ -21,8 +23,12 @@
             class="form-control"
             rows="{{ field.rows or 3 }}"
             {% if field.show_resolved_host_path %}data-project-host-path="{{ field.project_host_path }}"{% endif %}
-            {% if field.required and is_editable %}required{% endif %}
+            {% if field.required and is_editable and not is_disabled %}required{% endif %}
+            {% if is_disabled %}disabled{% endif %}
         >{{ field_value }}</textarea>
+        {% if is_disabled %}
+        <input type="hidden" name="{{ field.name }}" value="{{ field_value }}" data-disabled-mirror="true">
+        {% endif %}
         <button
             type="button"
             class="btn btn-outline-secondary input-action-btn"
@@ -40,12 +46,16 @@
         <select
             name="{{ field.name }}"
             class="form-select"
-            {% if field.required %}required{% endif %}
+            {% if field.required and not is_disabled %}required{% endif %}
+            {% if is_disabled %}disabled{% endif %}
         >
             {% for option in field.options or [] %}
             <option value="{{ option.value }}" {% if option.value == field_value %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
         </select>
+        {% if is_disabled %}
+        <input type="hidden" name="{{ field.name }}" value="{{ field_value }}" data-disabled-mirror="true">
+        {% endif %}
         <button
             type="button"
             class="btn btn-outline-secondary input-action-btn"
@@ -66,8 +76,12 @@
             value="{{ field_value }}"
             class="form-control"
             {% if field.show_resolved_host_path %}data-project-host-path="{{ field.project_host_path }}"{% endif %}
-            {% if field.required and is_editable %}required{% endif %}
+            {% if field.required and is_editable and not is_disabled %}required{% endif %}
+            {% if is_disabled %}disabled{% endif %}
         >
+        {% if is_disabled %}
+        <input type="hidden" name="{{ field.name }}" value="{{ field_value }}" data-disabled-mirror="true">
+        {% endif %}
         {% if field.input_type == "password" %}
         <button
             type="button"
@@ -84,6 +98,20 @@
     {% endif %}
     {% if field.help and is_editable %}
     <div class="inline-help {% if is_editable %}d-none{% endif %}" id="help-{{ field.name }}"{% if not is_editable %} style="display: block;"{% endif %}>{{ field.help|safe }}</div>
+    {% endif %}
+    {% if field.docs_url %}
+    <div class="inline-help">
+        <a href="{{ field.docs_url }}" target="_blank" rel="noopener noreferrer">{{ field.docs_label or "Official help" }}</a>
+    </div>
+    {% endif %}
+    {% if field.system_hint %}
+    <div class="inline-help">{{ field.system_hint }}</div>
+    {% endif %}
+    {% if field.availability_note and is_editable %}
+    <div class="inline-help" id="availability-{{ field.name }}">{{ field.availability_note }}</div>
+    {% endif %}
+    {% if field.disabled_reason and is_editable %}
+    <div class="inline-help" id="availability-{{ field.name }}">{{ field.disabled_reason }}</div>
     {% endif %}
     {% if field.show_resolved_host_path %}
     <div

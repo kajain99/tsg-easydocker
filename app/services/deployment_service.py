@@ -221,7 +221,6 @@ def start_deployment_run(
 
 def get_deployment_run(run_id):
     with _DEPLOYMENT_RUNS_LOCK:
-        _cleanup_deployment_runs_locked()
         return _DEPLOYMENT_RUNS.get(run_id)
 
 
@@ -250,11 +249,16 @@ def stream_deployment_events(run_id):
                 pending_logs.append(run_record["logs"][sent_index])
                 sent_index += 1
 
-            if run_record["complete"]:
-                done_payload = run_record["result"]
-            else:
+            if not run_record["complete"]:
                 condition.wait(timeout=10)
                 send_keep_alive = True
+
+                while sent_index < len(run_record["logs"]):
+                    pending_logs.append(run_record["logs"][sent_index])
+                    sent_index += 1
+
+            if run_record["complete"]:
+                done_payload = run_record["result"]
 
         for log_line in pending_logs:
             yield "event: log\ndata: " + json.dumps(log_line) + "\n\n"

@@ -10,7 +10,7 @@ _HOST_BASE_CONFIG_PATH = None
 _HOST_BASE_CONFIG_PATH_LOADED = False
 
 
-def _get_current_container_id():
+def get_current_container_id():
     hostname = os.environ.get("HOSTNAME", "").strip()
     if hostname:
         return hostname
@@ -27,7 +27,7 @@ def _detect_host_base_config_path():
     if configured_path:
         return configured_path
 
-    container_id = _get_current_container_id()
+    container_id = get_current_container_id()
     if not container_id:
         return None
 

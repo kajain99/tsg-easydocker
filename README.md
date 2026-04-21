@@ -13,7 +13,8 @@ From a user's point of view, EasyDocker is simple:
 3. click install
 4. review a small form with most values already filled in, with help available for each field
 5. fill in the few fields that matter
-6. click deploy
+6. review the generated Docker Compose
+7. click deploy
 
 That's it.
 
@@ -31,6 +32,8 @@ EasyDocker helps you:
 - detect port conflicts before deployment
 - detect possible duplicate installs
 - reopen and redeploy saved configurations
+- save persistent values such as `PUID`, `PGID`, and `TZ`
+- detect host CPU, RAM, and selected device availability for recipes that need them
 - refresh recipes from the official EasyDocker recipe repository
 
 ## Built for UGREEN, Works Everywhere
@@ -50,7 +53,7 @@ EasyDocker requires a mounted base config directory. It stores generated app con
 For example, if you run EasyDocker with:
 
 ```bash
--v /base_config:/base_config
+-v /your/host/base_config:/base_config
 ```
 
 then EasyDocker stores app-specific configuration inside that location. Each deployed app gets its own folder under the base config path, including its generated `docker-compose.yml` and related saved configuration.
@@ -134,7 +137,7 @@ docker run -d \
   -p 5000:5000 \
   -e EASYDOCKER_PASSWORD=your-strong-password \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v /base_config:/base_config \
+  -v /your/host/base_config:/base_config \
   --name easydocker \
   kajain99/easydocker:latest
 ```
@@ -152,9 +155,10 @@ services:
       - "5000:5000"
     environment:
       EASYDOCKER_PASSWORD: your-strong-password
+      EASYDOCKER_SECRET_KEY: your-long-random-secret
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /base_config:/base_config
+      - /your/host/base_config:/base_config
     restart: unless-stopped
 ```
 
@@ -209,7 +213,7 @@ docker run -d \
   -e EASYDOCKER_PASSWORD=your-strong-password \
   -e EASYDOCKER_SECRET_KEY=your-long-random-secret \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v /base_config:/base_config \
+  -v /your/host/base_config:/base_config \
   --name easydocker \
   kajain99/easydocker:latest
 ```
@@ -227,7 +231,9 @@ EasyDocker uses a recipe-based model. Each supported app has a recipe that defin
 - configurable fields
 - defaults
 
-When you choose an app in the UI, EasyDocker builds a form from that recipe, generates the Compose file, stores it in the base config folder, and can deploy it immediately.
+When you choose an app in the UI, EasyDocker builds a form from that recipe, lets you review the generated Compose file, stores it in the base config folder, and can deploy it immediately.
+
+EasyDocker also includes a Persistent Variables screen where you can save values such as `PUID`, `PGID`, and `TZ` once, plus detect host CPU, RAM, and selected device availability for recipes that use that information.
 
 ## Recipe Source
 

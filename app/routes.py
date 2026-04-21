@@ -1,11 +1,12 @@
 import json
 import shutil
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
-from flask import Response, jsonify, redirect, render_template, request, url_for
+from flask import Response, jsonify, redirect, render_template, request
 
 from app_config import BASE_CONFIG, GITHUB_BASE, RECIPES_PATH
-from auth_utils import login_view, logout_view
+from auth_utils import login_view, logout_view, normalize_next_url
 from services.catalog_service import build_installed_apps
 from services.compose_service import (
     build_compose_summary_from_compose,
@@ -36,8 +37,10 @@ from services.recipe_service import (
     is_safe_recipe_name,
     load_recipe_by_name,
     load_recipes,
+    normalize_recipe,
     save_recipe_snapshot,
 )
+from services.settings_service import detect_and_save_system_hardware, load_settings, save_settings
 from services.yaml_service import build_app_links, dump_compose_yaml, generate_compose
 
 
@@ -116,10 +119,11 @@ def resolve_container_name(recipe_name, action, container_name_override, has_dup
 
 def build_deploy_display_context(compose_summary, folder_path, pull_first):
     compose_cmd = get_compose_command()
-    command_display = " then ".join(
-        [" ".join(compose_cmd + ["pull"])] if pull_first else []
-        + [" ".join(compose_cmd + ["up", "-d"])]
-    )
+    command_parts = []
+    if pull_first:
+        command_parts.append(" ".join(compose_cmd + ["pull"]))
+    command_parts.append(" ".join(compose_cmd + ["up", "-d"]))
+    command_display = " then ".join(command_parts)
 
     exposed_ports = []
     if compose_summary:
@@ -236,10 +240,23 @@ def register_routes(app):
         installed_apps, orphan_configs = build_installed_apps()
         return render_template("installed.html", installed_apps=installed_apps, orphan_configs=orphan_configs)
 
+    @app.route("/settings", methods=["GET", "POST"])
+    def settings():
+        if request.method == "POST":
+            action = request.form.get("action", "save")
+            if action == "detect_system":
+                settings_values = detect_and_save_system_hardware(request.form)
+                return render_template("settings.html", settings=settings_values, saved=True, hardware_detected=True)
+
+            settings_values = save_settings(request.form)
+            return render_template("settings.html", settings=settings_values, saved=True, hardware_detected=False)
+
+        return render_template("settings.html", settings=load_settings(), saved=False, hardware_detected=False)
+
     @app.route("/recipes")
     def get_recipes():
         if not RECIPES_PATH.exists():
-            return jsonify({"error": "recipes folder not found"})
+            return jsonify({"error": "recipes folder not found"}), 404
         return jsonify(load_recipes())
 
     @app.route("/recipe/<name>")
@@ -249,7 +266,7 @@ def register_routes(app):
 
         recipe = load_recipe_by_name(name)
         if not recipe:
-            return f"Recipe {name} not found"
+            return f"Recipe {name} not found", 404
         return render_template("recipe_v2.html", **build_recipe_form_context(recipe))
 
     @app.route("/generate/<name>", methods=["POST"])
@@ -259,7 +276,7 @@ def register_routes(app):
 
         recipe = load_recipe_by_name(name)
         if not recipe:
-            return "Recipe not found"
+            return "Recipe not found", 404
 
         form_data = request.form
         action = resolve_submission_action(form_data.get("action"))
@@ -286,6 +303,7 @@ def register_routes(app):
         yaml_output = dump_compose_yaml(compose)
         compose_summary = build_compose_summary_from_compose(compose, [])
         form_items = list(form_data.items())
+        form_defaults = form_data.to_dict(flat=True)
         host_name = request.host.split(":")[0]
         app_links = build_app_links(recipe, form_data, container_name, host_name)
 
@@ -296,7 +314,7 @@ def register_routes(app):
                     "recipe_v2.html",
                     **build_recipe_form_context(
                         recipe,
-                        form_defaults=form_data.to_dict(flat=True),
+                        form_defaults=form_defaults,
                         port_conflicts=port_conflicts,
                         existing_config_name=container_name_override,
                     )
@@ -307,7 +325,7 @@ def register_routes(app):
                 "recipe_v2.html",
                 **build_recipe_form_context(
                     recipe,
-                    form_defaults=form_data.to_dict(flat=True),
+                    form_defaults=form_defaults,
                     existing_config_name=container_name,
                 ),
                 workflow_step="review",
@@ -402,7 +420,7 @@ def register_routes(app):
 
         app_folder = (BASE_CONFIG / container_name).resolve()
         base_resolved = BASE_CONFIG.resolve()
-        next_url = request.form.get("next", "/")
+        next_url = normalize_next_url(request.form.get("next", "/"))
 
         try:
             app_folder.relative_to(base_resolved)
@@ -424,7 +442,11 @@ def register_routes(app):
         if matching_container:
             return "Cannot delete config while matching project/container still exists", 400
 
-        shutil.rmtree(app_folder, ignore_errors=False)
+        try:
+            shutil.rmtree(app_folder, ignore_errors=False)
+        except OSError as exc:
+            return f"Could not delete config for {container_name}: {exc}", 400
+
         return redirect(next_url)
 
     @app.route("/refresh-recipes", methods=["POST"])
@@ -433,11 +455,12 @@ def register_routes(app):
             index_url = f"{GITHUB_BASE}/index.json"
             response = requests.get(index_url, timeout=10)
             if response.status_code != 200:
-                return jsonify({"error": "Failed to fetch index.json"})
+                return jsonify({"error": "Failed to fetch index.json"}), 502
 
             index_data = response.json()
             updated = []
             RECIPES_PATH.mkdir(parents=True, exist_ok=True)
+            outdated_recipes = []
 
             for item in index_data.get("recipes", []):
                 name = item["name"]
@@ -449,12 +472,46 @@ def register_routes(app):
                         local_version = json.load(handle).get("version", 0)
 
                 if version > local_version:
-                    recipe_url = f"{GITHUB_BASE}/{name}.json"
-                    recipe_data = requests.get(recipe_url, timeout=10).json()
-                    with open(local_file, "w") as handle:
+                    outdated_recipes.append({
+                        "name": name,
+                        "local_file": local_file,
+                    })
+
+            def fetch_recipe(recipe_name):
+                recipe_url = f"{GITHUB_BASE}/{recipe_name}.json"
+                recipe_response = requests.get(recipe_url, timeout=10)
+                if recipe_response.status_code != 200:
+                    raise ValueError(f"Failed to fetch recipe: {recipe_name}")
+
+                recipe_data = recipe_response.json()
+                normalize_recipe(recipe_data)
+                return recipe_name, recipe_data
+
+            if outdated_recipes:
+                max_workers = min(8, len(outdated_recipes))
+                fetched_recipes = {}
+
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    future_to_recipe = {
+                        executor.submit(fetch_recipe, item["name"]): item
+                        for item in outdated_recipes
+                    }
+
+                    for future in as_completed(future_to_recipe):
+                        item = future_to_recipe[future]
+                        try:
+                            recipe_name, recipe_data = future.result()
+                        except Exception as exc:
+                            return jsonify({"error": str(exc)}), 502
+                        fetched_recipes[recipe_name] = recipe_data
+
+                for item in outdated_recipes:
+                    recipe_name = item["name"]
+                    recipe_data = fetched_recipes[recipe_name]
+                    with open(item["local_file"], "w") as handle:
                         json.dump(recipe_data, handle, indent=2)
-                    updated.append(name)
+                    updated.append(recipe_name)
 
             return jsonify({"status": "success", "updated": updated, "updated_count": len(updated)})
         except Exception as exc:
-            return jsonify({"error": str(exc)})
+            return jsonify({"error": str(exc)}), 500

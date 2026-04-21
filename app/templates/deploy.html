@@ -165,12 +165,7 @@
 </head>
 <body>
 <div class="container deploy-shell">
-    <div class="top-bar">
-        <form method="POST" action="/logout" class="logout-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
-        </form>
-    </div>
+    {% include "partials/top_bar.html" %}
 
     <div class="deploy-card">
         <div class="deploy-hero">
@@ -208,18 +203,7 @@
         <div id="deploy-log" class="deploy-log"></div>
     </div>
 
-    <div class="app-footer">
-        <div class="app-footer-links">
-            <a href="https://github.com/kajain99/tsg-easydocker" target="_blank" class="app-footer-link">GitHub</a>
-            <span class="app-footer-separator">|</span>
-            <a href="https://hub.docker.com/r/kajain99/easydocker" target="_blank" class="app-footer-link">Docker Hub</a>
-            <span class="app-footer-separator">|</span>
-            <a href="https://ko-fi.com/kajain99" target="_blank" class="app-footer-link">Buy Me a Coffee</a>
-        </div>
-        <div>
-            EasyDocker installs apps. Your NAS Docker app manages them.
-        </div>
-    </div>
+    {% include "partials/app_footer.html" %}
 </div>
 
 <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>

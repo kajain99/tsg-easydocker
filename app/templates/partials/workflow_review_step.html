@@ -43,6 +43,9 @@
                     <pre class="compose-preview">{{ review_step.compose_yaml }}</pre>
                 </div>
             </div>
+            <div class="inline-help mt-3">
+                Saved Compose files are stored in your EasyDocker base config folder. Like standard Docker Compose setups, environment values and passwords may be stored there in plain text.
+            </div>
 
             {% set resolved_fields = [] %}
             {% for section in review_step.section_groups %}

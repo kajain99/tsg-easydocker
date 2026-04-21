@@ -11,6 +11,7 @@
             display: flex;
             justify-content: flex-end;
             align-items: center;
+            gap: 10px;
             margin-bottom: 14px;
         }
 
@@ -162,12 +163,8 @@
 
 <body>
 <div class="container mt-4" style="max-width: 860px;">
-    <div class="top-bar">
-        <form method="POST" action="/logout" class="logout-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
-        </form>
-    </div>
+    {% set show_settings_link = true %}
+    {% include "partials/top_bar.html" %}
 
     <div class="d-flex align-items-center gap-3 mb-4">
         <a href="/" class="back-link">&larr; Back</a>
@@ -267,18 +264,7 @@
         {% endif %}
     </div>
 
-    <div class="app-footer">
-        <div class="app-footer-links">
-            <a href="https://github.com/kajain99/tsg-easydocker" target="_blank" class="app-footer-link">GitHub</a>
-            <span class="app-footer-separator">|</span>
-            <a href="https://hub.docker.com/r/kajain99/easydocker" target="_blank" class="app-footer-link">Docker Hub</a>
-            <span class="app-footer-separator">|</span>
-            <a href="https://ko-fi.com/kajain99" target="_blank" class="app-footer-link">Buy Me a Coffee</a>
-        </div>
-        <div>
-            EasyDocker installs apps. Your NAS Docker app manages them.
-        </div>
-    </div>
+    {% include "partials/app_footer.html" %}
 
 </div>
 <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>

@@ -57,6 +57,8 @@ def build_field_values(recipe, form_data, project_name):
     raw_values = {
         "PROJECT_NAME": project_name
     }
+    conditional_fields = []
+    docker_network_fields = []
 
     for field in recipe.get("fields", []):
         field_name = field["name"]
@@ -65,8 +67,41 @@ def build_field_values(recipe, form_data, project_name):
             submitted_value = field.get("default", "")
         coerced_value = coerce_field_value(field, submitted_value)
         raw_values[field_name] = coerced_value
+
         if field.get("data_type") == "docker_network":
-            raw_values.update(get_docker_network_derivatives(field_name, coerced_value))
+            docker_network_fields.append(field["name"])
+
+        if field.get("omit_when_inactive"):
+            conditional_fields.append({
+                "name": field_name,
+                "visible_when": field.get("visible_when"),
+                "hidden_when": field.get("hidden_when"),
+            })
+
+    for field in conditional_fields:
+        field_name = field["name"]
+        visible_when = field["visible_when"]
+        hidden_when = field["hidden_when"]
+
+        if visible_when:
+            should_show = all(
+                raw_values.get(dependency_name) in (allowed_values or [])
+                for dependency_name, allowed_values in visible_when.items()
+            )
+            if not should_show:
+                raw_values[field_name] = None
+                continue
+
+        if hidden_when:
+            should_hide = all(
+                raw_values.get(dependency_name) in (allowed_values or [])
+                for dependency_name, allowed_values in hidden_when.items()
+            )
+            if should_hide:
+                raw_values[field_name] = None
+
+    for field_name in docker_network_fields:
+        raw_values.update(get_docker_network_derivatives(field_name, raw_values.get(field_name)))
 
     values = {"PROJECT_NAME": project_name}
     for field_name, value in raw_values.items():
@@ -190,6 +225,33 @@ def resolve_relative_bind_mounts(compose, project_name):
     return compose
 
 
+def apply_service_resource_limits(recipe, compose, field_values):
+    services = compose.get("services", {})
+    if not isinstance(services, dict):
+        return compose
+
+    for field in recipe.get("fields", []):
+        resource_kind = field.get("resource_kind")
+        service_name = field.get("service_name")
+        field_name = field.get("name")
+
+        if resource_kind not in {"cpu_limit", "memory_limit"} or not service_name or not field_name:
+            continue
+        if service_name not in services:
+            continue
+
+        resource_value = field_values.get(field_name)
+        if resource_value in (None, ""):
+            continue
+
+        if resource_kind == "cpu_limit":
+            services[service_name]["cpus"] = str(resource_value)
+        elif resource_kind == "memory_limit":
+            services[service_name]["mem_limit"] = str(resource_value)
+
+    return compose
+
+
 def merge_extra_environment(compose):
     services = compose.get("services", {})
     for service_name, service_data in services.items():
@@ -224,6 +286,7 @@ def generate_compose(recipe, form_data, project_name):
             continue
         compose[top_level_key] = cleaned_value
 
+    compose = apply_service_resource_limits(recipe, compose, field_values)
     compose = merge_extra_environment(compose)
     return resolve_relative_bind_mounts(compose, project_name)
 

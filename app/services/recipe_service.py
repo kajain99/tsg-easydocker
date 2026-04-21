@@ -1,16 +1,82 @@
 import json
 
 import bleach
+from flask import g, has_request_context
 
 from app_config import RECIPES_PATH, SAFE_RECIPE_NAME_RE
 from services.docker_service import get_available_network_options
 from services.host_path_service import build_project_host_path
+from services.settings_service import load_settings
 from services.yaml_service import PLACEHOLDER_RE, RESERVED_RECIPE_KEYS
 ALLOWED_HELP_TAGS = ["a", "br", "code", "em", "strong", "ul", "ol", "li", "p"]
 ALLOWED_HELP_ATTRIBUTES = {
     "a": ["href", "target", "rel"],
 }
 ALLOWED_HELP_PROTOCOLS = ["http", "https", "mailto"]
+_RECIPE_CACHE = {}
+
+
+def get_resource_field_name(service_name, resource_kind):
+    normalized_service_name = "".join(
+        char.upper() if char.isalnum() else "_"
+        for char in service_name
+    ).strip("_")
+    normalized_kind = resource_kind.upper()
+    return f"{normalized_service_name}_{normalized_kind}"
+
+
+def ensure_advanced_section(ui):
+    sections = list(ui.get("sections", []))
+    if any(section.get("name") == "advanced" for section in sections):
+        ui["sections"] = sections
+        return ui
+
+    sections.append({
+        "name": "advanced",
+        "label": "Advanced",
+        "collapsed": True,
+    })
+    ui["sections"] = sections
+    return ui
+
+
+def inject_resource_limit_fields(recipe):
+    fields = list(recipe.get("fields", []))
+    services = recipe.get("services", {}) or {}
+    service_count = len(services)
+
+    for service_name in services.keys():
+        for resource_kind, label_suffix, help_text in (
+            (
+                "cpu_limit",
+                "CPU Limit",
+                "Optional CPU limit for this service. Leave blank for no CPU limit. Example: 1.5",
+            ),
+            (
+                "memory_limit",
+                "Memory Limit",
+                "Optional memory limit for this service. Leave blank for no memory limit. Example: 2g or 2048m",
+            ),
+        ):
+            field_name = get_resource_field_name(service_name, resource_kind)
+            if any(field.get("name") == field_name for field in fields):
+                continue
+
+            label = label_suffix if service_count == 1 else f"{service_name} {label_suffix}"
+            fields.append({
+                "name": field_name,
+                "label": label,
+                "section": "advanced",
+                "input_type": "text",
+                "required": False,
+                "default": "",
+                "resource_kind": resource_kind,
+                "service_name": service_name,
+                "help": help_text,
+            })
+
+    recipe["fields"] = fields
+    return recipe
 
 
 def is_safe_recipe_name(name):
@@ -24,9 +90,11 @@ def load_recipes():
 
     for file_name in RECIPES_PATH.iterdir():
         if file_name.suffix == ".json" and file_name.name != "index.json":
-            with open(file_name) as handle:
-                recipes.append(normalize_recipe(json.load(handle)))
+            cached_recipe = _load_cached_recipe(file_name)
+            if cached_recipe:
+                recipes.append(cached_recipe)
 
+    recipes.sort(key=lambda recipe: (recipe.get("name") or "").lower())
     return recipes
 
 
@@ -38,8 +106,30 @@ def load_recipe_by_name(name):
     if not recipe_file.exists():
         return None
 
+    return _load_cached_recipe(recipe_file)
+
+
+def _load_cached_recipe(recipe_file):
+    try:
+        stat = recipe_file.stat()
+    except OSError:
+        _RECIPE_CACHE.pop(str(recipe_file), None)
+        return None
+
+    cache_key = str(recipe_file)
+    cached_entry = _RECIPE_CACHE.get(cache_key)
+    cache_signature = (stat.st_mtime_ns, stat.st_size)
+    if cached_entry and cached_entry["signature"] == cache_signature:
+        return cached_entry["recipe"]
+
     with open(recipe_file) as handle:
-        return normalize_recipe(json.load(handle))
+        recipe = normalize_recipe(json.load(handle))
+
+    _RECIPE_CACHE[cache_key] = {
+        "signature": cache_signature,
+        "recipe": recipe,
+    }
+    return recipe
 
 
 def normalize_field(field):
@@ -100,7 +190,8 @@ def normalize_recipe(recipe):
             normalized_section["name"] = section_name.strip().lower()
         normalized_sections.append(normalized_section)
     ui["sections"] = normalized_sections
-    normalized["ui"] = ui
+    normalized["ui"] = ensure_advanced_section(ui)
+    normalized = inject_resource_limit_fields(normalized)
     validate_recipe(normalized)
     return normalized
 
@@ -179,10 +270,12 @@ def _validate_compose_value(value, allowed_placeholders, path):
         )
 
 
-def build_field_display_value(field, form_defaults=None):
+def build_field_display_value(field, form_defaults=None, persistent_defaults=None):
     field_value = field.get("default", "")
     if form_defaults and field.get("name") in form_defaults:
         field_value = form_defaults.get(field.get("name"))
+    elif persistent_defaults and field.get("name") in persistent_defaults:
+        field_value = persistent_defaults.get(field.get("name"), field_value)
 
     if field.get("input_type") == "select" and field_value == "":
         options = field.get("options") or []
@@ -202,15 +295,61 @@ def get_resolved_host_path(field_value, project_name):
     return build_project_host_path(project_name, field_value)
 
 
+def get_recipe_runtime_context(project_name=None):
+    if has_request_context():
+        runtime_context = getattr(g, "recipe_runtime_context", None)
+        if runtime_context is None:
+            runtime_context = {
+                "persistent_defaults": load_settings(),
+                "network_options": None,
+                "project_host_paths": {},
+            }
+            g.recipe_runtime_context = runtime_context
+    else:
+        runtime_context = {
+            "persistent_defaults": load_settings(),
+            "network_options": None,
+            "project_host_paths": {},
+        }
+
+    if project_name not in runtime_context["project_host_paths"]:
+        runtime_context["project_host_paths"][project_name] = (
+            build_project_host_path(project_name, "./") if project_name else None
+        )
+
+    return runtime_context
+
+
 def build_recipe_field_sections(recipe, form_defaults=None, project_name=None):
     fields = recipe.get("fields", [])
     fields_by_section = {}
-    project_host_path = build_project_host_path(project_name, "./") if project_name else None
+    runtime_context = get_recipe_runtime_context(project_name)
+    project_host_path = runtime_context["project_host_paths"].get(project_name)
+    persistent_defaults = runtime_context["persistent_defaults"]
+    system_hardware = persistent_defaults
     for field in fields:
         field_copy = dict(field)
         if field_copy.get("options_source") == "docker_networks":
-            field_copy["options"] = get_available_network_options()
-        field_value = build_field_display_value(field_copy, form_defaults)
+            if runtime_context["network_options"] is None:
+                runtime_context["network_options"] = get_available_network_options()
+            field_copy["options"] = runtime_context["network_options"]
+        field_value = build_field_display_value(field_copy, form_defaults, persistent_defaults)
+        availability_path = field_copy.get("availability_path")
+        if availability_path:
+            device_status = system_hardware.get("devices", {}).get(availability_path)
+            if device_status is True:
+                field_copy["availability_note"] = f"Detected in system configuration: {availability_path}"
+            elif device_status is False:
+                if field_value in (None, ""):
+                    field_copy["disabled"] = True
+                field_copy["disabled_reason"] = f"Not detected in system configuration: {availability_path}"
+            else:
+                if field_value in (None, ""):
+                    field_copy["disabled"] = True
+                field_copy["disabled_reason"] = (
+                    field_copy.get("detection_required_message")
+                    or f"Go to Persistent Variables and run Detect System Hardware for {availability_path}."
+                )
         field_copy["current_value"] = field_value
         field_copy["project_host_path"] = project_host_path
         field_copy["show_resolved_host_path"] = (
@@ -219,6 +358,10 @@ def build_recipe_field_sections(recipe, form_defaults=None, project_name=None):
             and bool(project_host_path)
         )
         field_copy["resolved_host_path"] = get_resolved_host_path(field_value, project_name)
+        if field_copy.get("resource_kind") == "cpu_limit" and system_hardware.get("cpu_count"):
+            field_copy["system_hint"] = f"Detected host total: {system_hardware['cpu_count']} CPU threads"
+        elif field_copy.get("resource_kind") == "memory_limit" and system_hardware.get("memory_human"):
+            field_copy["system_hint"] = f"Detected host total: {system_hardware['memory_human']} RAM"
         section_name = field["section"]
         fields_by_section.setdefault(section_name, []).append(field_copy)
 

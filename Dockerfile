@@ -2,8 +2,11 @@ FROM ubuntu:22.04
 
 WORKDIR /app
 
+ARG EASYDOCKER_VERSION=dev
+
 ENV EASYDOCKER_HOST=0.0.0.0
 ENV EASYDOCKER_USERNAME=admin
+ENV EASYDOCKER_VERSION=${EASYDOCKER_VERSION}
 
 # Basic deps and Docker repository
 RUN apt-get update && apt-get install -y --no-install-recommends \

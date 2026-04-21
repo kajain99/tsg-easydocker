@@ -1,0 +1,9 @@
+<div class="top-bar">
+    {% if show_settings_link|default(false) %}
+    <a href="/settings" class="btn btn-outline-secondary btn-sm" title="Set persistent variables">Persistent Variables</a>
+    {% endif %}
+    <form method="POST" action="/logout" class="logout-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
+    </form>
+</div>

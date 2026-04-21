@@ -1,0 +1,19 @@
+<div class="app-footer">
+    <div class="app-footer-links">
+        <a href="https://github.com/kajain99/tsg-easydocker" target="_blank" class="app-footer-link">GitHub</a>
+        <span class="app-footer-separator">|</span>
+        <a href="https://github.com/kajain99/tsg-easydocker/issues" target="_blank" class="app-footer-link">Bug Reports</a>
+        <span class="app-footer-separator">|</span>
+        <a href="https://hub.docker.com/r/kajain99/easydocker" target="_blank" class="app-footer-link">Docker Hub</a>
+        <span class="app-footer-separator">|</span>
+        <a href="https://ko-fi.com/kajain99" target="_blank" class="app-footer-link">Buy Me a Coffee</a>
+    </div>
+    {% if show_footer_tagline|default(true) %}
+    <div>
+        EasyDocker installs apps. Your NAS Docker app manages them.
+    </div>
+    {% endif %}
+    <div>
+        Version {{ easydocker_version }}
+    </div>
+</div>

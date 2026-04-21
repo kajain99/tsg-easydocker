@@ -8,12 +8,16 @@ PROJECT_ROOT = APP_DIR.parent
 DEFAULT_BASE_CONFIG = Path("/base_config")
 BASE_CONFIG = Path(os.environ.get("EASYDOCKER_BASE_CONFIG", DEFAULT_BASE_CONFIG))
 RECIPES_PATH = BASE_CONFIG / "recipes"
+SYSTEM_CONFIG_FILE = BASE_CONFIG / "system-config.json"
+LEGACY_SETTINGS_FILE = BASE_CONFIG / "easydocker-settings.json"
+LEGACY_SYSTEM_HW_FILE = BASE_CONFIG / "system-hw.json"
 GITHUB_BASE = "https://raw.githubusercontent.com/kajain99/tsg-easydocker-recipes/main/recipes"
 SAFE_RECIPE_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 SAFE_CONTAINER_NAME_RE = re.compile(r"^[A-Za-z0-9_]+$")
 DEFAULT_USERNAME = "admin"
 EASYDOCKER_USERNAME = os.environ.get("EASYDOCKER_USERNAME", DEFAULT_USERNAME)
 EASYDOCKER_PASSWORD = os.environ.get("EASYDOCKER_PASSWORD", "").strip()
+EASYDOCKER_VERSION = os.environ.get("EASYDOCKER_VERSION", "dev").strip() or "dev"
 
 if not EASYDOCKER_PASSWORD:
     raise RuntimeError(

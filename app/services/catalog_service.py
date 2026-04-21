@@ -5,7 +5,7 @@ from flask import request
 from app_config import BASE_CONFIG
 from services.compose_service import (
     build_app_links_from_compose,
-    build_compose_summary,
+    build_compose_summary_from_compose,
     get_primary_port_from_summary,
     build_project_status,
     get_compose_data,
@@ -14,17 +14,25 @@ from services.docker_service import get_all_containers_info
 from services.recipe_service import get_recipe_from_compose
 
 
-def get_app_links_for_config(project_name, compose_file):
-    recipe, compose_data = get_recipe_from_compose(compose_file, get_compose_data)
-    if not recipe:
-        return []
+def get_project_config_metadata(project_name, compose_file):
+    compose_data = get_compose_data(compose_file)
+    compose_summary = build_compose_summary_from_compose(compose_data)
+    recipe, _ = get_recipe_from_compose(compose_file, lambda _compose_file: compose_data)
 
-    return build_app_links_from_compose(recipe, compose_data, project_name, request.host.split(":")[0])
+    app_links = []
+    if recipe:
+        app_links = build_app_links_from_compose(
+            recipe,
+            compose_data,
+            project_name,
+            request.host.split(":")[0]
+        )
 
-
-def get_project_port(compose_file):
-    compose_summary = build_compose_summary(compose_file)
-    return get_primary_port_from_summary(compose_summary)
+    return {
+        "port": get_primary_port_from_summary(compose_summary),
+        "app_links": app_links,
+        "reviewable": True,
+    }
 
 
 def format_member(container):
@@ -50,11 +58,7 @@ def build_installed_apps():
             if full_path.is_dir():
                 compose_file = full_path / "docker-compose.yml"
                 if compose_file.exists():
-                    managed_projects[folder] = {
-                        "port": get_project_port(compose_file),
-                        "app_links": get_app_links_for_config(folder, compose_file),
-                        "reviewable": True
-                    }
+                    managed_projects[folder] = get_project_config_metadata(folder, compose_file)
 
     for container in all_containers_info:
         project_name = container.get("project") or ""
