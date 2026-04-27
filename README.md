@@ -101,6 +101,25 @@ resolves to:
 
 On Windows with Docker Desktop, bind-mount path resolution may not map back to normal host-visible Windows paths as cleanly as it does on Linux. EasyDocker is designed primarily for Linux and NAS-style Docker hosts, and that storage model is the one we recommend.
 
+## Screenshots
+
+### Recipes (App Templates)
+![Recipes](screenshots/recipes.PNG)
+
+### Tailscale – Basic Setup
+![Tailscale Basic](screenshots/basic_tailscale.PNG)
+
+### Tailscale – Advanced Settings
+![Tailscale Advanced](screenshots/advanced_tailscale.PNG)
+
+### Pre-Deploy (Compose Preview)
+![Pre-Deploy](screenshots/predeploy_tailscale.PNG)
+
+### Deployment Logs
+![Deployment](screenshots/deployment.PNG)
+
+
+
 ## Security Notes
 
 EasyDocker is a Docker management utility, so it should be treated as a trusted local-network tool.
