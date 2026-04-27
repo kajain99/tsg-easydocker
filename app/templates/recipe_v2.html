@@ -419,24 +419,6 @@
         {% endif %}
     </div>
 
-    {% if port_conflicts %}
-    <div class="warning-card">
-        <strong>Port conflict detected.</strong>
-        One or more host ports are already in use. Update the values below, then try deploy again.
-        <ul class="summary-list mt-2 mb-0">
-            {% for conflict in port_conflicts %}
-            <li>
-                Host port <code>{{ conflict.host_port }}</code> for service <code>{{ conflict.service }}</code>
-                is already used by {{ conflict.containers | join(", ") }}.
-                {% if conflict.suggested_port %}
-                Suggested next free port: <code>{{ conflict.suggested_port }}</code>.
-                {% endif %}
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
-
     {% if redeploy_mode %}
     <div class="config-banner">
         <div class="config-banner-title">Review your saved app</div>

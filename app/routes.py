@@ -17,7 +17,6 @@ from services.docker_service import (
     build_container_name,
     build_existing_config_context,
     find_duplicate_containers,
-    find_port_conflicts,
     get_all_containers_info,
     get_all_project_names,
     get_compose_command,
@@ -59,14 +58,12 @@ def action_pulls_first(action):
     return action in {"review_pull_deploy", "pull_deploy"}
 
 
-def build_recipe_form_context(recipe, form_defaults=None, port_conflicts=None, existing_config_name=None):
+def build_recipe_form_context(recipe, form_defaults=None, existing_config_name=None):
     project_name = existing_config_name or build_container_name(recipe["name"])
     context = {
         "recipe": recipe,
         "form_defaults": form_defaults or {},
     }
-    if port_conflicts:
-        context["port_conflicts"] = port_conflicts
     context.update(
         build_recipe_field_sections(
             recipe,
@@ -306,19 +303,6 @@ def register_routes(app):
         form_defaults = form_data.to_dict(flat=True)
         host_name = request.host.split(":")[0]
         app_links = build_app_links(recipe, form_data, container_name, host_name)
-
-        if action in DEPLOY_ACTIONS:
-            port_conflicts = find_port_conflicts(compose, container_name)
-            if port_conflicts:
-                return render_template(
-                    "recipe_v2.html",
-                    **build_recipe_form_context(
-                        recipe,
-                        form_defaults=form_defaults,
-                        port_conflicts=port_conflicts,
-                        existing_config_name=container_name_override,
-                    )
-                )
 
         if action in REVIEW_ACTIONS:
             return render_template(
