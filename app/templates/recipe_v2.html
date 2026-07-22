@@ -45,6 +45,74 @@
             padding: 2px 8px;
             line-height: 1.4;
         }
+        .recipe-overview-card {
+            background: white;
+            border: 1px solid #e8eaed;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 18px;
+        }
+        .recipe-overview-text {
+            color: #475569;
+            font-size: 14px;
+            margin: 0;
+        }
+        .recipe-overview-list {
+            color: #475569;
+            font-size: 14px;
+            margin: 12px 0 0 0;
+            padding-left: 18px;
+        }
+        .recipe-overview-list li + li {
+            margin-top: 6px;
+        }
+        .recipe-data-path {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid #e8eaed;
+            color: #5f6b7a;
+            font-size: 13px;
+        }
+        .recipe-data-path code {
+            display: inline-block;
+            margin-top: 4px;
+            color: #1f2937;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 3px 6px;
+            word-break: break-word;
+        }
+        .recipe-manual-callout {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+            padding: 10px 12px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            color: #1d4ed8;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .recipe-manual-callout-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: white;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            flex-shrink: 0;
+        }
+        .recipe-manual-callout a {
+            color: #1d4ed8;
+            text-decoration: none;
+        }
+        .recipe-manual-callout a:hover { text-decoration: underline; }
         .summary-card,
         .workflow-card {
             background: white;
@@ -179,6 +247,21 @@
             margin-left: 6px;
             font-weight: 600;
         }
+        .field-label {
+            font-weight: 600;
+        }
+        .field-label-required {
+            color: #0891b2;
+        }
+        .field-label-optional {
+            color: #1d4ed8;
+        }
+        .field-label-advanced {
+            color: #7e22ce;
+        }
+        .field-label-readonly {
+            color: #475569;
+        }
         .inline-help {
             margin-top: 8px;
             font-size: 13px;
@@ -202,6 +285,9 @@
             font-size: 13px;
             font-weight: 600;
             margin-right: 6px;
+        }
+        .readonly-label.field-label-readonly {
+            color: #475569;
         }
         .section-meta {
             color: #7a8291;
@@ -417,8 +503,35 @@
             {% endfor %}
         </div>
         {% endif %}
+
     </div>
 
+    {% if recipe.ui and (recipe.ui.overview or recipe.ui.what_happens or recipe.ui.manual) %}
+    <div class="recipe-overview-card">
+        {% if recipe.ui.overview %}
+        <p class="recipe-overview-text">{{ recipe.ui.overview }}</p>
+        {% endif %}
+        {% if recipe.ui.what_happens %}
+        <ul class="recipe-overview-list">
+            {% for item in recipe.ui.what_happens %}
+            <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if project_host_path %}
+        <div class="recipe-data-path">
+            Data for this app will be saved under:<br>
+            <code>{{ project_host_path }}</code>
+        </div>
+        {% endif %}
+        {% if recipe.ui.manual %}
+        <div class="recipe-manual-callout">
+            <span class="recipe-manual-callout-mark">?</span>
+            <a href="{{ recipe.ui.manual }}" target="_blank" rel="noopener noreferrer">Online Manual</a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
     {% if redeploy_mode %}
     <div class="config-banner">
         <div class="config-banner-title">Review your saved app</div>
@@ -483,7 +596,6 @@
                     {% for section in section_groups %}
                     {% include "partials/recipe_section.html" %}
                     {% endfor %}
-
                     {% if redeploy_mode %}
                     <div class="action-grid">
                         <div class="action-card">

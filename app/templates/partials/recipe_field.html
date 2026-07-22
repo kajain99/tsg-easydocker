@@ -9,9 +9,9 @@
 >
     {% if not is_editable %}
     <input type="hidden" name="{{ field.name }}" value="{{ field_value }}">
-    <div class="readonly-item"><span class="readonly-label">{{ field.label }}:</span>{% if field.input_type == "select" %}{% for option in field.options or [] %}{% if option.value == field_value %}{{ option.label }}{% endif %}{% endfor %}{% else %}{{ field_value if field_value not in (None, '') else 'Not set' }}{% endif %}</div>
+    <div class="readonly-item"><span class="readonly-label field-label field-label-readonly">{{ field.label }}:</span>{% if field.input_type == "select" %}{% for option in field.options or [] %}{% if option.value == field_value %}{{ option.label }}{% endif %}{% endfor %}{% else %}{{ field_value if field_value not in (None, '') else 'Not set' }}{% endif %}</div>
     {% elif field.input_type == "textarea" %}
-    <label class="form-label">
+    <label class="form-label field-label field-label-{{ field.section }}">
         {{ field.label }}
         {% if field.required and is_editable %}
         <span class="required-note">*Required</span>
@@ -36,7 +36,7 @@
         >?</button>
     </div>
     {% elif field.input_type == "select" %}
-    <label class="form-label">
+    <label class="form-label field-label field-label-{{ field.section }}">
         {{ field.label }}
         {% if field.required and is_editable %}
         <span class="required-note">*Required</span>
@@ -63,7 +63,7 @@
         >?</button>
     </div>
     {% else %}
-    <label class="form-label">
+    <label class="form-label field-label field-label-{{ field.section }}">
         {{ field.label }}
         {% if field.required and is_editable %}
         <span class="required-note">*Required</span>

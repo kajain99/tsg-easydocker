@@ -24,6 +24,7 @@ from services.docker_service import (
     get_primary_recipe_image,
     is_safe_container_name,
 )
+from services.host_path_service import build_project_host_path
 from services.deployment_service import (
     build_deployment_result_payloads,
     get_deployment_run,
@@ -63,6 +64,7 @@ def build_recipe_form_context(recipe, form_defaults=None, existing_config_name=N
     context = {
         "recipe": recipe,
         "form_defaults": form_defaults or {},
+        "project_host_path": build_project_host_path(project_name, "./"),
     }
     context.update(
         build_recipe_field_sections(

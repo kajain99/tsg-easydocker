@@ -1,9 +1,22 @@
 <div class="top-bar">
-    {% if show_settings_link|default(false) %}
-    <a href="/settings" class="btn btn-outline-secondary btn-sm" title="Set persistent variables">Persistent Variables</a>
-    {% endif %}
-    <form method="POST" action="/logout" class="logout-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
-    </form>
+    <a href="/" class="app-brand" aria-label="TSG EasyDocker home">
+        <img src="{{ url_for('static', filename='images/easydocker-logo.png') }}"
+             class="app-brand-logo"
+             alt="">
+        <span class="app-brand-copy">
+            <span class="app-brand-title">TSG EasyDocker</span>
+            {% if app_brand_subtitle|default('') %}
+            <span class="app-brand-subtitle">{{ app_brand_subtitle }}</span>
+            {% endif %}
+        </span>
+    </a>
+    <div class="top-bar-actions">
+        {% if show_settings_link|default(false) %}
+        <a href="/settings" class="btn btn-outline-secondary btn-sm" title="Set persistent variables">Persistent Variables</a>
+        {% endif %}
+        <form method="POST" action="/logout" class="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
+        </form>
+    </div>
 </div>
