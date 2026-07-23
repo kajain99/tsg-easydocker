@@ -1,3 +1,17 @@
+---
+
+## 🏠 We now have a home!
+
+Visit the official **TSG Easy Docker website** to learn what the project does, explore full documentation, find installation instructions for various NAS platforms, and read other useful guides.
+
+[![Visit Official Website](https://img.shields.io/badge/Visit_Official_Website-tsg--easydocker.com-blue?style=for-the-badge)](https://tsg-easydocker.com/)
+
+[![Read the Documentation](https://img.shields.io/badge/Read_the_Documentation-Installation_%26_Guides-green?style=for-the-badge)](https://tsg-easydocker.com/docs/)
+
+---
+
+
+
 # TSG EasyDocker
 
 TSG EasyDocker is a lightweight web utility that helps you install Docker applications using guided forms. It is built for home users, NAS users, and anyone who wants a simpler way to deploy apps without dealing with `docker compose` YAML or long `docker run` commands.
