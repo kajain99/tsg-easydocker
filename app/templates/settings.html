@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Persistent Variables</title>
+    <title>Persistent Variables / Detection</title>
     <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css">
     <link rel="stylesheet" href="/static/easydocker.css">
     <style>
@@ -71,6 +71,48 @@
             color: #1f2937;
             font-weight: 600;
         }
+        .macvlan-section {
+            margin-top: 24px;
+            padding-top: 22px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .macvlan-network {
+            margin-top: 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .macvlan-network-header {
+            padding: 12px 14px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .macvlan-network-name {
+            color: #1f2937;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .macvlan-network-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 18px;
+            margin-top: 5px;
+            color: #5f6b7a;
+            font-size: 13px;
+        }
+        .macvlan-table {
+            margin: 0;
+        }
+        .macvlan-table th {
+            color: #7a8291;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .macvlan-empty {
+            padding: 14px;
+            color: #5f6b7a;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -79,7 +121,7 @@
 
     <div class="settings-card">
         <a href="/" class="btn btn-link px-0 mb-2">&larr; Back</a>
-        <h2 class="page-title">Persistent Variables</h2>
+        <h2 class="page-title">Persistent Variables / Detection</h2>
         <p class="page-subtitle">Save values once and EasyDocker will prefill matching recipe fields automatically.</p>
 
         <div class="help-card">
@@ -149,6 +191,61 @@
                 <a href="/" class="btn btn-outline-secondary">Cancel</a>
             </div>
         </form>
+
+        <div class="macvlan-section" id="macvlan-inspection">
+            <div class="help-card">
+                <strong>Macvlan Network Inspection</strong><br>
+                Inspect only Docker macvlan networks and show the IPv4 address assigned to each connected container. Results are read live from Docker and are not saved.
+            </div>
+
+            <form method="POST" action="/settings">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" name="action" value="inspect_macvlan" class="btn btn-outline-primary">Inspect Macvlan Networks</button>
+            </form>
+
+            {% if macvlan_inspected|default(false) %}
+                {% if macvlan_error %}
+                <div class="alert alert-danger mt-3" role="alert">{{ macvlan_error }}</div>
+                {% elif not macvlan_networks %}
+                <div class="alert alert-secondary mt-3" role="status">No macvlan networks were found.</div>
+                {% else %}
+                    {% for network in macvlan_networks %}
+                    <div class="macvlan-network">
+                        <div class="macvlan-network-header">
+                            <div class="macvlan-network-name">{{ network.name }}</div>
+                            <div class="macvlan-network-meta">
+                                <span><strong>Subnet:</strong> {{ network.subnets|join(", ") if network.subnets else "Not configured" }}</span>
+                                <span><strong>Gateway:</strong> {{ network.gateways|join(", ") if network.gateways else "Not configured" }}</span>
+                                <span><strong>Parent:</strong> {{ network.parent if network.parent else "Not configured" }}</span>
+                            </div>
+                        </div>
+                        {% if network.containers %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle macvlan-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Container</th>
+                                        <th scope="col">IPv4 Address</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for container in network.containers %}
+                                    <tr>
+                                        <td>{{ container.name }}</td>
+                                        <td><code>{{ container.ipv4_address if container.ipv4_address else "Not assigned" }}</code></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="macvlan-empty">No containers are currently attached to this macvlan network.</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endif %}
+        </div>
     </div>
 
     {% include "partials/app_footer.html" %}

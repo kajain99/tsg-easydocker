@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 from functools import lru_cache
@@ -68,6 +69,173 @@ def get_available_network_options():
     discovered.sort(key=lambda item: item["label"].lower())
     options.extend(discovered)
     return options
+
+
+def get_docker_network_driver(network_name):
+    if not isinstance(network_name, str) or not network_name.strip():
+        return None
+    network_name = network_name.strip()
+
+    cache = None
+    if has_request_context():
+        cache = getattr(g, "docker_network_driver_cache", None)
+        if cache is None:
+            cache = {}
+            g.docker_network_driver_cache = cache
+        if network_name in cache:
+            return cache[network_name]
+
+    driver = None
+    try:
+        result = subprocess.run(
+            [
+                "docker", "network", "inspect", network_name,
+                "--format", "{{.Driver}}",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            driver = result.stdout.strip().lower() or None
+    except Exception:
+        driver = None
+
+    if cache is not None:
+        cache[network_name] = driver
+    return driver
+
+
+def recipe_uses_macvlan_network(recipe, form_data):
+    external_prefix = "__external__:"
+    for field in recipe.get("fields", []):
+        if field.get("data_type") != "docker_network":
+            continue
+        selected_network = form_data.get(field.get("name"), field.get("default", ""))
+        if not isinstance(selected_network, str) or not selected_network.startswith(external_prefix):
+            continue
+        network_name = selected_network[len(external_prefix):].strip()
+        if get_docker_network_driver(network_name) == "macvlan":
+            return True
+    return False
+
+
+def compose_uses_macvlan_network(compose_data):
+    networks = compose_data.get("networks", {}) if isinstance(compose_data, dict) else {}
+    if not isinstance(networks, dict):
+        return False
+
+    for network_key, network_config in networks.items():
+        if not isinstance(network_config, dict) or network_config.get("external") is not True:
+            continue
+        network_name = network_config.get("name") or network_key
+        if get_docker_network_driver(network_name) == "macvlan":
+            return True
+    return False
+
+
+def inspect_macvlan_networks():
+    try:
+        list_result = subprocess.run(
+            [
+                "docker", "network", "ls",
+                "--filter", "driver=macvlan",
+                "--format", "{{.Name}}",
+            ],
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return {
+            "networks": [],
+            "error": "Unable to inspect Docker macvlan networks.",
+        }
+
+    if list_result.returncode != 0:
+        return {
+            "networks": [],
+            "error": (list_result.stderr or "").strip()
+            or "Unable to inspect Docker macvlan networks.",
+        }
+
+    network_names = sorted({
+        line.strip()
+        for line in list_result.stdout.splitlines()
+        if line.strip()
+    }, key=str.lower)
+    if not network_names:
+        return {"networks": [], "error": None}
+
+    try:
+        inspect_result = subprocess.run(
+            ["docker", "network", "inspect", *network_names],
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return {
+            "networks": [],
+            "error": "Unable to inspect Docker macvlan network details.",
+        }
+
+    if inspect_result.returncode != 0:
+        return {
+            "networks": [],
+            "error": (inspect_result.stderr or "").strip()
+            or "Unable to inspect Docker macvlan network details.",
+        }
+
+    try:
+        inspected_networks = json.loads(inspect_result.stdout or "[]")
+    except (TypeError, ValueError):
+        return {
+            "networks": [],
+            "error": "Docker returned invalid macvlan network details.",
+        }
+
+    networks = []
+    for network in inspected_networks:
+        if not isinstance(network, dict) or network.get("Driver") != "macvlan":
+            continue
+
+        ipam_configs = network.get("IPAM", {}).get("Config", [])
+        if not isinstance(ipam_configs, list):
+            ipam_configs = []
+        subnets = sorted({
+            config.get("Subnet", "").strip()
+            for config in ipam_configs
+            if isinstance(config, dict) and config.get("Subnet")
+        })
+        gateways = sorted({
+            config.get("Gateway", "").strip()
+            for config in ipam_configs
+            if isinstance(config, dict) and config.get("Gateway")
+        })
+
+        containers = []
+        network_containers = network.get("Containers", {})
+        if isinstance(network_containers, dict):
+            for container_id, container in network_containers.items():
+                if not isinstance(container, dict):
+                    continue
+                ipv4_address = (container.get("IPv4Address") or "").split("/", 1)[0]
+                containers.append({
+                    "id": container_id,
+                    "name": container.get("Name") or container_id[:12],
+                    "ipv4_address": ipv4_address,
+                })
+        containers.sort(key=lambda item: item["name"].lower())
+
+        options = network.get("Options", {})
+        networks.append({
+            "name": network.get("Name") or "Unnamed macvlan network",
+            "subnets": subnets,
+            "gateways": gateways,
+            "parent": options.get("parent", "") if isinstance(options, dict) else "",
+            "containers": containers,
+        })
+
+    networks.sort(key=lambda item: item["name"].lower())
+    return {"networks": networks, "error": None}
 
 
 def _get_current_container_image():

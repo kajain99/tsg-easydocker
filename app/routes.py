@@ -22,6 +22,8 @@ from services.docker_service import (
     get_compose_command,
     get_next_container_name,
     get_primary_recipe_image,
+    inspect_macvlan_networks,
+    recipe_uses_macvlan_network,
     is_safe_container_name,
 )
 from services.host_path_service import build_project_host_path
@@ -243,6 +245,17 @@ def register_routes(app):
     def settings():
         if request.method == "POST":
             action = request.form.get("action", "save")
+            if action == "inspect_macvlan":
+                macvlan_result = inspect_macvlan_networks()
+                return render_template(
+                    "settings.html",
+                    settings=load_settings(),
+                    saved=False,
+                    hardware_detected=False,
+                    macvlan_inspected=True,
+                    macvlan_networks=macvlan_result["networks"],
+                    macvlan_error=macvlan_result["error"],
+                )
             if action == "detect_system":
                 settings_values = detect_and_save_system_hardware(request.form)
                 return render_template("settings.html", settings=settings_values, saved=True, hardware_detected=True)
@@ -304,7 +317,14 @@ def register_routes(app):
         form_items = list(form_data.items())
         form_defaults = form_data.to_dict(flat=True)
         host_name = request.host.split(":")[0]
-        app_links = build_app_links(recipe, form_data, container_name, host_name)
+        if recipe_uses_macvlan_network(recipe, form_data):
+            app_links = [{
+                "label": "Find Macvlan IP",
+                "url": "/settings#macvlan-inspection",
+                "show_label": True,
+            }]
+        else:
+            app_links = build_app_links(recipe, form_data, container_name, host_name)
 
         if action in REVIEW_ACTIONS:
             return render_template(

@@ -12,7 +12,7 @@
     </a>
     <div class="top-bar-actions">
         {% if show_settings_link|default(false) %}
-        <a href="/settings" class="btn btn-outline-secondary btn-sm" title="Set persistent variables">Persistent Variables</a>
+        <a href="/settings" class="btn btn-outline-secondary btn-sm" title="Manage persistent variables and detection tools">Persistent Variables / Detection</a>
         {% endif %}
         <form method="POST" action="/logout" class="logout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

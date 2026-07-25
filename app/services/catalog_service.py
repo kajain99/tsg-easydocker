@@ -10,7 +10,10 @@ from services.compose_service import (
     build_project_status,
     get_compose_data,
 )
-from services.docker_service import get_all_containers_info
+from services.docker_service import (
+    compose_uses_macvlan_network,
+    get_all_containers_info,
+)
 from services.recipe_service import get_recipe_from_compose
 
 
@@ -21,12 +24,19 @@ def get_project_config_metadata(project_name, compose_file):
 
     app_links = []
     if recipe:
-        app_links = build_app_links_from_compose(
-            recipe,
-            compose_data,
-            project_name,
-            request.host.split(":")[0]
-        )
+        if compose_uses_macvlan_network(compose_data):
+            app_links = [{
+                "label": "Find Macvlan IP",
+                "url": "/settings#macvlan-inspection",
+                "show_label": True,
+            }]
+        else:
+            app_links = build_app_links_from_compose(
+                recipe,
+                compose_data,
+                project_name,
+                request.host.split(":")[0]
+            )
 
     return {
         "port": get_primary_port_from_summary(compose_summary),

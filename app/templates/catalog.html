@@ -440,6 +440,7 @@
                                 {% if app.source == "easydocker" and app.app_links %}
                                     {% for link in app.app_links %}
                                     <a href="{{ link.url if link.url else 'http://' ~ request.host.split(':')[0] ~ ':' ~ link.port }}" target="_blank" class="open-btn" aria-label="{{ link.label }}">
+                                        {% if link.show_label|default(false) %}<span>{{ link.label }}</span>{% endif %}
                                         <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                                         </svg>
