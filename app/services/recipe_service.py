@@ -159,6 +159,14 @@ def normalize_field(field):
     if isinstance(options_source, str):
         normalized["options_source"] = options_source.strip().lower()
 
+    generator = normalized.get("generator")
+    if isinstance(generator, dict):
+        normalized_generator = dict(generator)
+        generator_type = normalized_generator.get("type")
+        if isinstance(generator_type, str):
+            normalized_generator["type"] = generator_type.strip().lower()
+        normalized["generator"] = normalized_generator
+
     return normalized
 
 
@@ -232,6 +240,23 @@ def validate_recipe(recipe):
                 f"Field {field['name']} uses unknown section '{section_name}'. "
                 "Add it to ui.sections."
             )
+
+        generator = field.get("generator")
+        if generator is None:
+            continue
+        if not isinstance(generator, dict):
+            raise ValueError(f"Field {field['name']} generator must be an object.")
+        generator_type = generator.get("type")
+        if generator_type not in {"hex", "password", "base64", "alphanumeric", "uuid"}:
+            raise ValueError(f"Field {field['name']} uses an unsupported generator type.")
+        size_key = "bytes" if generator_type in {"hex", "base64"} else "length"
+        if generator_type != "uuid":
+            size = generator.get(size_key, 32)
+            if isinstance(size, bool) or not isinstance(size, int) or not 8 <= size <= 128:
+                raise ValueError(
+                    f"Field {field['name']} generator {size_key} must be an integer "
+                    "between 8 and 128."
+                )
 
     allowed_placeholders = get_allowed_placeholder_names(fields)
     for top_level_key, value in recipe.items():

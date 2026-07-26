@@ -669,6 +669,52 @@
         buttonEl.textContent = showing ? "Show" : "Hide";
     }
 
+    async function generateSecret(buttonEl) {
+        const fieldName = buttonEl.dataset.fieldName;
+        const input = recipeForm?.querySelector(`input[name="${CSS.escape(fieldName)}"]`);
+        const csrfInput = recipeForm?.querySelector('input[name="csrf_token"]');
+        if (!input || !csrfInput) return;
+
+        if (input.value && !window.confirm("Replace the existing value with a new secret?")) {
+            return;
+        }
+
+        const originalLabel = buttonEl.textContent;
+        buttonEl.disabled = true;
+        buttonEl.textContent = "Generating...";
+
+        try {
+            const response = await fetch(
+                `/api/recipes/${encodeURIComponent({{ recipe.name|tojson }})}/generate-secret`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-Token": csrfInput.value
+                    },
+                    body: JSON.stringify({ field: fieldName })
+                }
+            );
+            const payload = await response.json();
+            if (payload.csrf_token) {
+                csrfInput.value = payload.csrf_token;
+            }
+            if (!response.ok) {
+                throw new Error(payload.error || "Secret generation failed.");
+            }
+
+            input.value = payload.value;
+            csrfInput.value = payload.csrf_token;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.focus();
+        } catch (error) {
+            window.alert(error.message || "Secret generation failed.");
+        } finally {
+            buttonEl.disabled = false;
+            buttonEl.textContent = originalLabel;
+        }
+    }
+
     function buildResolvedHostPath(projectHostPath, rawValue) {
         if (!projectHostPath || typeof rawValue !== "string") {
             return null;

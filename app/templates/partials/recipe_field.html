@@ -82,6 +82,14 @@
         {% if is_disabled %}
         <input type="hidden" name="{{ field.name }}" value="{{ field_value }}" data-disabled-mirror="true">
         {% endif %}
+        {% if field.generator %}
+        <button
+            type="button"
+            class="btn btn-outline-secondary input-action-btn"
+            data-field-name="{{ field.name }}"
+            onclick="generateSecret(this)"
+        >Generate</button>
+        {% endif %}
         {% if field.input_type == "password" %}
         <button
             type="button"

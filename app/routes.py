@@ -6,7 +6,7 @@ import requests
 from flask import Response, jsonify, redirect, render_template, request
 
 from app_config import BASE_CONFIG, GITHUB_BASE, RECIPES_PATH
-from auth_utils import login_view, logout_view, normalize_next_url
+from auth_utils import get_csrf_token, login_view, logout_view, normalize_next_url
 from services.catalog_service import build_installed_apps
 from services.compose_service import (
     build_compose_summary_from_compose,
@@ -42,6 +42,7 @@ from services.recipe_service import (
     normalize_recipe,
     save_recipe_snapshot,
 )
+from services.secret_service import generate_from_config
 from services.settings_service import detect_and_save_system_hardware, load_settings, save_settings
 from services.yaml_service import build_app_links, dump_compose_yaml, generate_compose
 
@@ -270,6 +271,36 @@ def register_routes(app):
         if not RECIPES_PATH.exists():
             return jsonify({"error": "recipes folder not found"}), 404
         return jsonify(load_recipes())
+
+    @app.route("/api/recipes/<name>/generate-secret", methods=["POST"])
+    def generate_recipe_secret(name):
+        if not is_safe_recipe_name(name):
+            return jsonify({"error": "Invalid recipe name", "csrf_token": get_csrf_token()}), 400
+
+        recipe = load_recipe_by_name(name)
+        if not recipe:
+            return jsonify({"error": "Recipe not found", "csrf_token": get_csrf_token()}), 404
+
+        payload = request.get_json(silent=True) or {}
+        field_name = payload.get("field")
+        field = next(
+            (item for item in recipe.get("fields", []) if item.get("name") == field_name),
+            None,
+        )
+        if not field or not field.get("generator"):
+            return jsonify({
+                "error": "This field does not support secret generation",
+                "csrf_token": get_csrf_token(),
+            }), 400
+
+        try:
+            value = generate_from_config(field["generator"])
+        except ValueError as exc:
+            return jsonify({"error": str(exc), "csrf_token": get_csrf_token()}), 400
+
+        response = jsonify({"value": value, "csrf_token": get_csrf_token()})
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.route("/recipe/<name>")
     def show_recipe(name):
